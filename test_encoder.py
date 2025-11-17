@@ -255,7 +255,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--env_id", type=str, default="HalfCheetah-v4")
     ap.add_argument("--algo", type=str, default="ppo", choices=["ppo","sac"])
-    ap.add_argument("--run_dir", type=str, default="runs/halfcheetah_bestmodel")
+    ap.add_argument("--run_dir", type=str, default="runs/halfcheetah_sb3")
     ap.add_argument("--encoder", type=str, default="mlp", choices=["affine","mlp"])
     ap.add_argument("--latent_dim", type=int, default=5)
     ap.add_argument("--hidden", type=int, default=256)
