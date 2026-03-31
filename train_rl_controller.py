@@ -122,9 +122,9 @@ def main():
     )
 
     policy_kwargs = (
-        dict(net_arch=dict(pi=args.n1, qf=args.n2))
+        dict(net_arch=dict(pi=args.n1, qf=args.n2), activation_fn=torch.nn.ReLU)
         if args.algo == "sac"
-        else dict(net_arch=args.n1)
+        else dict(net_arch=args.n1, activation_fn=torch.nn.ReLU)
     )
     
     model = build_algo(args.algo, train_vec_norm, seed=args.seed, lr=args.lr,
