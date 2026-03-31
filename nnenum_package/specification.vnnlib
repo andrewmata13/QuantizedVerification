@@ -1,0 +1,22 @@
+(declare-const X_0 Real)
+(declare-const X_1 Real)
+(declare-const X_2 Real)
+(declare-const X_3 Real)
+
+(declare-const Y_0 Real)
+(declare-const Y_1 Real)
+
+(assert (<= X_0 10000.0))
+(assert (>= X_0 -10000.0))
+
+(assert (<= X_1 10000.0))
+(assert (>= X_1 -20000.0))
+
+(assert (<= X_2 10000.0))
+(assert (>= X_2 -30000.0))
+
+(assert (<= X_3 10000.0))
+(assert (>= X_3 -40000.0))
+
+(assert (<= Y_0 0.0) )
+(assert (>= Y_0 1.0) )

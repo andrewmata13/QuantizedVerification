@@ -1,0 +1,25 @@
+# Dockerfile for nnenum
+#
+# To build image:
+# docker build . -t nnenum_image
+#
+# To get a shell after building the image:
+# docker run -ir nnenum_image bash
+
+FROM python:3.12
+
+# set working directory
+WORKDIR /work
+
+# copy files to docker
+COPY . /work
+
+# install python package dependencies
+RUN pip3 install .
+
+# set environment variables
+ENV OPENBLAS_NUM_THREADS=1
+ENV OMP_NUM_THREADS=1
+
+# cmd, run one of each benchmark
+CMD ./run_tests.sh

@@ -1,0 +1,6 @@
+git+https://github.com/cjdrake/pyeda.git@7d8bb1a51a284b4ce6ffb2f39751e9e4711e34f9
+numpy
+matplotlib
+pypoman
+scipy
+z3-solver

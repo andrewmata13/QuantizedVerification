@@ -35,6 +35,8 @@ def main():
     ap.add_argument("--env_id", type=str, default="HalfCheetah-v4", help="RL Environment Name")
     ap.add_argument("--env_cnt", type=int, default=1, help="Number of environments")
     ap.add_argument("--algo", type=str, default="sac", choices=["ppo", "sac"], help="Choose between PPO and SAC")
+    ap.add_argument("--n1", type=int, default=[256, 256], nargs="+", help="List of hidden layers of network 1")
+    ap.add_argument("--n2", type=int, default=[], nargs="+", help="List of hidden layers of network 2 (For SAC)")
     ap.add_argument("--timesteps", type=int, default=3_000_000, help="Total training timesteps")
     ap.add_argument("--seed", type=int, default=0, help="Seed value")
     ap.add_argument("--lr", type=float, default=3e-4, help="Learning Rate")
@@ -45,6 +47,7 @@ def main():
     ap.add_argument("--obs_norm_flag", action="store_true", help="Do we have observation normalization")
     ap.add_argument("--device", type=str, default="auto")
     ap.add_argument("--sample_cnt", type=int, default=1000, help="How many samples do you want?")
+    ap.add_argument("--discrete_env", action="store_true", help="Is it a discrete environment?")
 
     args = ap.parse_args()
 
@@ -77,9 +80,14 @@ def main():
     obs = eval_vec_norm.reset()
     for _ in range(args.sample_cnt):
         action, _ = model.predict(obs, deterministic=True)
-        
         obs_list.append(obs[0])
-        action_list.append(action)
+
+        if args.discrete_env:
+            cur_action = [0 for i in range(eval_vec_norm.action_space.n)]
+            cur_action[action[0]] = 1
+            action_list.append(cur_action)
+        else:
+            action_list.append(action.tolist()[0])
 
         obs, reward, done, info = eval_vec_norm.step(action)
         if done[0]:

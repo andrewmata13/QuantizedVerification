@@ -1,0 +1,1 @@
+python verify_pinch_controller.py --device "cuda:0" --env_id CartPole-v1 --algo ppo --n1 10 3 64 --env_cnt 3 --timesteps 3_000 --lr 3e-4 --eval_every 100_000 --eval_episodes 10 --gamma 0.99 --reward_norm_flag

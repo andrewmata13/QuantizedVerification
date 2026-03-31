@@ -1,0 +1,33 @@
+# Doug's development environment (conda) for the latent-quantization project
+
+name: latent-quantization
+channels:
+  - conda-forge
+  - pytorch
+  - nvidia
+  - gurobi
+  - mosek
+dependencies:
+  - python=3.12
+  - numpy=2.3.5
+  - scipy
+  - matplotlib
+  - pytorch
+  - pytorch-cuda
+  - stable-baselines3[extra]
+  - tqdm
+  - rich
+  - onnx
+  - onnxscript
+  - netron
+  - gurobi
+  - cvxpy
+  - cvxopt
+  - swiglpk
+  - Mosek
+
+  # onnxsim not available on conda, only pypi.
+  # TODO: Convert this environment to virtualenv or Docker to avoid mixing pip and conda.
+  - pip
+  - pip:
+    - onnxsim

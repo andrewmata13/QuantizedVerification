@@ -1,1 +1,0 @@
-python train_latent_controller.py --device "cpu" --env_id CartPole-v1 --algo ppo --env_cnt 3 --timesteps 3_000_000 --lr 3e-4 --eval_every 100_000 --eval_episodes 10 --gamma 0.99 --sample_cnt 10000 --obs_norm_flag --reward_norm_flag --encoder affine --latent_dim 2 --latent_hidden 256 --controller_hidden 10 --epochs 1000 --bs 256 --latent_lr 3e-4

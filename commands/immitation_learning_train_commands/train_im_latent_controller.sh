@@ -1,0 +1,1 @@
+python train_im_latent_controller.py --device "cuda:0" --env_id CartPole-v1 --discrete_env --algo ppo --n1 256 64 --env_cnt 3 --timesteps 3_000 --lr 3e-4 --eval_every 100_000 --eval_episodes 10 --gamma 0.99 --sample_cnt 10000 --obs_norm_flag --reward_norm_flag --encoder affine --latent_dim 4 --latent_hidden 256 --controller_hidden 256 --epochs 1000 --bs 256 --latent_lr 3e-4

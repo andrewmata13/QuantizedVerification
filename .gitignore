@@ -1,5 +1,5 @@
 __pycache__/
-rl_controllers/
+controllers/
 env_data/
 latent_controllers/
 videos/

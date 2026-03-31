@@ -1,0 +1,1 @@
+python env_sample_generator.py --device "cpu" --env_id Hopper-v5 --algo ppo --n1 256 64 --env_cnt 3 --timesteps 3_000_000 --lr 3e-4 --eval_every 100_000 --eval_episodes 10 --gamma 0.99 --sample_cnt 10000 --obs_norm_flag --reward_norm_flag

@@ -1,0 +1,5 @@
+Metadata-Version: 2.4
+Name: iq_verify
+Version: 0.0.0a0
+Requires-Python: >=3.6
+Dynamic: requires-python

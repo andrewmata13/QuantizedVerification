@@ -1,0 +1,27 @@
+; Cartpole spec1
+
+(declare-const X_0 Real)
+(declare-const X_1 Real)
+(declare-const X_2 Real)
+(declare-const X_3 Real)
+
+(declare-const Y_0 Real)
+
+; Input constraints:
+
+(assert (<= X_0 2.40))
+(assert (>= X_0 2.00))
+
+(assert (<= X_1 0.20))
+(assert (>= X_1 -0.20))
+
+(assert (<= X_2 0.20))
+(assert (>= X_2 0.15))
+
+(assert (<= X_3 0.10))
+(assert (>= X_3 0.00))
+
+; Output constraints:
+(assert (or
+    (and (<= Y_0 1) (>= Y_0 1))
+))
