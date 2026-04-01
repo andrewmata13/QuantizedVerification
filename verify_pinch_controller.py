@@ -5,7 +5,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from vnnlib.compat import read_vnnlib_simple
 
 import gymnasium as gym
 from gymnasium.wrappers import RecordVideo
@@ -29,6 +28,9 @@ from nnenum.onnx_network import load_onnx_network_optimized, load_onnx_network
 from nnenum.specification import Specification, DisjunctiveSpec
 from nnenum.vnnlib import get_num_inputs_outputs, read_vnnlib_simple
 from nnenum.lpinstance import SwigArray
+
+from iq_verify.set_repr import star_set
+from iq_verify.quant_reach.quantization_utils import QuantizationUtils
 
 # Make sb3 environment
 def make_env(env_id, seed=0, eval_record_path=None):
@@ -89,6 +91,15 @@ def load_dataset(dataset_path):
     
     return obs, action  
 
+def get_quantized_points(nnenum_starsets_list, latent_dim):
+    result = []
+    for nnenum_star in nnenum_starsets_list:
+        iqv_star = star_set.StarSet.from_nnenum_LpStar(nnenum_star)
+        quant_params = [0.1 for i in range(latent_dim)]
+        pts = QuantizationUtils.stateset_to_qpoints(iqv_star, quant_params)
+        result += pts
+    return result
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--env_id", type=str, default="HalfCheetah-v4", help="RL Environment Name")
@@ -110,20 +121,28 @@ def main():
     args = ap.parse_args()
   
     pinch_controller_dir, _ = get_pinch_controllers_save_path(args)
-
-    obs_dim = 4
-    act_dim = 1
     
     env_stats_file_path = f"{pinch_controller_dir}/train_vec_norm.pkl"
     vnnlib_spec_path = f"specs/{args.env_id}/spec_{args.spec_id}.vnnlib"
     encoder_onnx_path = f"{pinch_controller_dir}/encoder.onnx"
-  
+    latent_controller_path = f"{pinch_controller_dir}/controller_full.pth"
+
     spec_list, input_dtype = make_spec(
         vnnlib_filename=vnnlib_spec_path,
         onnx_filename=encoder_onnx_path,
     )
 
+    eval_env = DummyVecEnv([make_env(args.env_id, seed=args.seed + 2000)])
+    discrete_env_flag = False
+    if len(eval_env.action_space.shape) != 0:
+        action_dim = eval_env.action_space.shape[0]
+    else:
+        action_dim = 1
+        discrete_env_flag = True
+
     network = load_onnx_network_optimized(encoder_onnx_path)
+    input_dim = network.get_input_shape()[0]
+    latent_dim = network.get_output_shape()[0]
 
     # Options are "control", "image", "exact"
     set_exact_settings()
@@ -143,27 +162,39 @@ def main():
         result_str = res.result_str
         nnenum_stars += res.stars
 
-    print("*****")
+    quantized_points = get_quantized_points(nnenum_stars, latent_dim)
+    unique_quantized_points = []
+    unique_flag = {}
+    for point in quantized_points:
+        if tuple(point) not in unique_flag:
+            unique_quantized_points.append(point)
+            unique_flag[tuple(point)] = True
+    unique_quantized_points = torch.tensor(np.stack(unique_quantized_points), dtype=torch.float32)
 
+    query = read_vnnlib_simple(vnnlib_spec_path, input_dim, action_dim)
+    input_spec = np.array(query[0][0]).T
+    output_mat = query[0][1][0][0]
+    output_rhs = query[0][1][0][1]
+
+    latent_controller_model = torch.load(latent_controller_path, weights_only=False)
+    latent_controller_model.eval()
+
+    outputs = latent_controller_model(unique_quantized_points)
+    if discrete_env_flag:
+        outputs = torch.argmax(torch.softmax(outputs, dim=1), dim=1, keepdim=True)
+    
+    print(outputs)
+
+    print(output_mat)
+    print(output_rhs)
 
     # Obs Normalization
-    # input_spec = np.array(query[0][0]).T
-
-    # output_mat = query[0][1][0][0]
-    # output_rhs = query[0][1][0][1]
-
     # eval_env = DummyVecEnv([make_env(args.env_id, seed=args.seed + 3000)])
     # eval_vec_norm = VecNormalize.load(str(env_stats_file_path), eval_env)
     # eval_vec_norm.training = False
     # eval_vec_norm.norm_reward = False
-
     # input_spec_normalized = eval_vec_norm.normalize_obs(input_spec)
     # encoder_model = torch.load(encoder_path, weights_only=False)
-
-    exit()
-
-
-
 
 if __name__ == "__main__":
     main()

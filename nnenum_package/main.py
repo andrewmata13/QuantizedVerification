@@ -63,4 +63,5 @@ for nnenum_star in nnenum_stars:
 
 plt.grid()
 plt.show()
+plt.savefig("fig.png")
 plt.close()

@@ -29,8 +29,3 @@ iq_verify/set_repr/zonotope.py
 iq_verify/set_repr/bdd_set/BDDset.py
 iq_verify/set_repr/bdd_set/__init__.py
 iq_verify/set_repr/bdd_set/kamenev.py
-tests/test_cheb.py
-tests/test_h_polytope.py
-tests/test_lcdd.py
-tests/test_star.py
-tests/test_v_polytope.py
