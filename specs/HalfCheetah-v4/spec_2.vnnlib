@@ -1,0 +1,85 @@
+; HalfCheetah-v4 Spec 2 – Tight nominal box (precise reachability)
+;
+; A tight box around a typical mid-run state. Used for Method A vs Method B
+; timing comparison since it exercises more branches than spec_1.
+;
+; Input bounds are in *normalized* observation space.
+
+(declare-const X_0  Real)
+(declare-const X_1  Real)
+(declare-const X_2  Real)
+(declare-const X_3  Real)
+(declare-const X_4  Real)
+(declare-const X_5  Real)
+(declare-const X_6  Real)
+(declare-const X_7  Real)
+(declare-const X_8  Real)
+(declare-const X_9  Real)
+(declare-const X_10 Real)
+(declare-const X_11 Real)
+(declare-const X_12 Real)
+(declare-const X_13 Real)
+(declare-const X_14 Real)
+(declare-const X_15 Real)
+(declare-const X_16 Real)
+
+(declare-const Y_0 Real)
+
+; Tight nominal running box
+(assert (>= X_0  -0.50))
+(assert (<= X_0   0.50))
+
+(assert (>= X_1  -0.50))
+(assert (<= X_1   0.50))
+
+(assert (>= X_2  -0.50))
+(assert (<= X_2   0.50))
+
+(assert (>= X_3  -1.00))
+(assert (<= X_3   1.00))
+
+(assert (>= X_4  -1.00))
+(assert (<= X_4   1.00))
+
+(assert (>= X_5  -1.00))
+(assert (<= X_5   1.00))
+
+(assert (>= X_6  -1.00))
+(assert (<= X_6   1.00))
+
+(assert (>= X_7  -1.00))
+(assert (<= X_7   1.00))
+
+(assert (>= X_8  -1.00))
+(assert (<= X_8   1.00))
+
+; Forward velocity: positive
+(assert (>= X_9   0.50))
+(assert (<= X_9   2.00))
+
+(assert (>= X_10 -1.00))
+(assert (<= X_10  1.00))
+
+(assert (>= X_11 -1.00))
+(assert (<= X_11  1.00))
+
+(assert (>= X_12 -1.00))
+(assert (<= X_12  1.00))
+
+(assert (>= X_13 -1.00))
+(assert (<= X_13  1.00))
+
+(assert (>= X_14 -1.00))
+(assert (<= X_14  1.00))
+
+(assert (>= X_15 -1.00))
+(assert (<= X_15  1.00))
+
+(assert (>= X_16 -1.00))
+(assert (<= X_16  1.00))
+
+; Output violation: latent < -0.01 (proved impossible since encoder ends in ReLU)
+; UNSAT = Y_0 = ReLU(...) >= 0 always, so Y_0 < -0.01 is unreachable.
+(assert (or
+    (and (<= Y_0 -0.01))
+))

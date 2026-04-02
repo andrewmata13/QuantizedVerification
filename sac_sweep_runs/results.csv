@@ -1,0 +1,2 @@
+env_id,arch,seed,mean,std,run_dir
+Hopper-v5,"{""pi"":[16,1,512,512],""qf"":[256,256]}",0,1057.880126953125,0.489707350730896,sac_sweep_runs/Hopper-v5/arch0/seed0

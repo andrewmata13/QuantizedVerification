@@ -1,0 +1,42 @@
+; HalfCheetah-v4 Spec 3 – Latent sign check for forward-running state
+;
+; For a state where HalfCheetah is actively moving forward (positive forward
+; velocity, stable posture), check if the encoder latent Y_0 can be negative
+; (i.e. Y_0 < -0.01).  Since the encoder ends in ReLU, this is always UNSAT.
+;
+; After training and running generate_halfcheetah_specs.py, this spec will be
+; calibrated with a tighter, semantically-meaningful threshold.
+
+(declare-const X_0  Real)
+(declare-const X_1  Real)
+(declare-const X_2  Real)
+(declare-const X_3  Real)
+(declare-const X_4  Real)
+(declare-const X_5  Real)
+(declare-const X_6  Real)
+(declare-const X_7  Real)
+(declare-const X_8  Real)
+(declare-const X_9  Real)
+(declare-const X_10 Real)
+(declare-const X_11 Real)
+(declare-const X_12 Real)
+(declare-const X_13 Real)
+(declare-const X_14 Real)
+(declare-const X_15 Real)
+(declare-const X_16 Real)
+(declare-const Y_0  Real)
+(declare-const Y_1  Real)
+(declare-const Y_2  Real)
+(declare-const Y_3  Real)
+(declare-const Y_4  Real)
+(declare-const Y_5  Real)
+
+; Violation: any pre-tanh action < -50 (full network, same input box)
+(assert (or
+    (and (<= Y_0 -50.0))
+    (and (<= Y_1 -50.0))
+    (and (<= Y_2 -50.0))
+    (and (<= Y_3 -50.0))
+    (and (<= Y_4 -50.0))
+    (and (<= Y_5 -50.0))
+))

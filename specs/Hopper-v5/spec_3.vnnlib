@@ -1,0 +1,72 @@
+; Hopper-v5 Spec 3 – Tight latent separation spec (calibrate after training)
+;
+; This spec checks that for a *small* nominal observation box around a known
+; good trajectory point, the encoder output Y_0 is positive (assuming positive
+; latent values correspond to healthy behavior after calibration).
+;
+; Workflow:
+;   1. Train model with train_custom_sb3.py
+;   2. Run generate_hopper_specs.py to find the median latent value at healthy
+;      states, then update the threshold below.
+;   3. Verify with verify_hopper.py
+;
+; The threshold below (0.0) is a placeholder – update it with the actual
+; value observed from generate_hopper_specs.py after training.
+;
+; Input bounds are in *normalized* observation space.
+
+(declare-const X_0  Real)
+(declare-const X_1  Real)
+(declare-const X_2  Real)
+(declare-const X_3  Real)
+(declare-const X_4  Real)
+(declare-const X_5  Real)
+(declare-const X_6  Real)
+(declare-const X_7  Real)
+(declare-const X_8  Real)
+(declare-const X_9  Real)
+(declare-const X_10 Real)
+
+(declare-const Y_0 Real)
+
+; Tight nominal box – a small region around a healthy hopping point
+(assert (>= X_0  0.80))
+(assert (<= X_0  1.20))
+
+(assert (>= X_1 -0.50))
+(assert (<= X_1  0.50))
+
+(assert (>= X_2 -1.00))
+(assert (<= X_2  1.00))
+
+(assert (>= X_3 -1.00))
+(assert (<= X_3  1.00))
+
+(assert (>= X_4 -1.00))
+(assert (<= X_4  1.00))
+
+(assert (>= X_5  0.50))
+(assert (<= X_5  2.00))
+
+(assert (>= X_6 -1.00))
+(assert (<= X_6  1.00))
+
+(assert (>= X_7 -1.00))
+(assert (<= X_7  1.00))
+
+(assert (>= X_8 -1.00))
+(assert (<= X_8  1.00))
+
+(assert (>= X_9 -1.00))
+(assert (<= X_9  1.00))
+
+(assert (>= X_10 -1.00))
+(assert (<= X_10  1.00))
+
+; Output constraint: latent is negative (violation = latent < 0 for a "should be positive" region)
+; UNSAT proves all inputs in this box produce a positive latent (safe assignment).
+; SAT provides a counterexample where the encoder produces a negative latent for a healthy state.
+; UPDATE the threshold after running generate_hopper_specs.py.
+(assert (or
+    (and (<= Y_0 0.00))
+))

@@ -1,0 +1,78 @@
+; Hopper-v5 Spec 2 – Near-failure (large tilt) state reachability
+;
+; Property: for states where the torso angle is large (near the ±0.2 rad
+; failure boundary, which maps to roughly ±2 in normalized space), the
+; 1-D encoder bottleneck output Y_0 is in a DIFFERENT range than the
+; nominal hopping region.
+;
+; This spec is used together with spec_1 to show that the encoder's 1-D
+; latent *separates* healthy and near-failure observations, making the
+; quantized latent space semantically meaningful for safety verification.
+;
+; If the verified nominal range from spec_1 is [lo, hi] and the encoder
+; output for near-failure states is verifiably OUTSIDE [lo, hi], the
+; separation is formally proved.
+;
+; Input bounds are in *normalized* observation space.
+
+(declare-const X_0  Real)
+(declare-const X_1  Real)
+(declare-const X_2  Real)
+(declare-const X_3  Real)
+(declare-const X_4  Real)
+(declare-const X_5  Real)
+(declare-const X_6  Real)
+(declare-const X_7  Real)
+(declare-const X_8  Real)
+(declare-const X_9  Real)
+(declare-const X_10 Real)
+
+(declare-const Y_0 Real)
+
+; Input constraints – near-failure region (large torso tilt)
+; Height: could still be above failure threshold but angle is large
+(assert (>= X_0 -0.50))
+(assert (<= X_0  1.50))
+
+; Torso angle: near failure boundary (normalized |X_1| ≈ 2.0)
+(assert (>= X_1  1.50))
+(assert (<= X_1  3.00))
+
+; Joint angles: unconstrained in moderate range
+(assert (>= X_2 -3.00))
+(assert (<= X_2  3.00))
+
+(assert (>= X_3 -3.00))
+(assert (<= X_3  3.00))
+
+(assert (>= X_4 -3.00))
+(assert (<= X_4  3.00))
+
+; Forward velocity: slowing down as hopper falls
+(assert (>= X_5 -1.00))
+(assert (<= X_5  2.00))
+
+; Other velocities: larger variance during falling
+(assert (>= X_6 -3.00))
+(assert (<= X_6  3.00))
+
+(assert (>= X_7 -3.00))
+(assert (<= X_7  3.00))
+
+(assert (>= X_8 -3.00))
+(assert (<= X_8  3.00))
+
+(assert (>= X_9 -3.00))
+(assert (<= X_9  3.00))
+
+(assert (>= X_10 -3.00))
+(assert (<= X_10  3.00))
+
+; Output constraint: check if the latent is outside [-5, 5] for near-failure inputs.
+; Combined with spec_1 (UNSAT → nominal stays inside [-5, 5]), a SAT result here
+; would provide a concrete near-failure state that drives the encoder out of the
+; nominal latent region – demonstrating latent-space separation.
+(assert (or
+    (and (>= Y_0  5.00))
+    (and (<= Y_0 -5.00))
+))

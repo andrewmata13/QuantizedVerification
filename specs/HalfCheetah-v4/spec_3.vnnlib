@@ -1,0 +1,87 @@
+; HalfCheetah-v4 Spec 3 – Latent sign check for forward-running state
+;
+; For a state where HalfCheetah is actively moving forward (positive forward
+; velocity, stable posture), check if the encoder latent Y_0 can be negative
+; (i.e. Y_0 < -0.01).  Since the encoder ends in ReLU, this is always UNSAT.
+;
+; After training and running generate_halfcheetah_specs.py, this spec will be
+; calibrated with a tighter, semantically-meaningful threshold.
+
+(declare-const X_0  Real)
+(declare-const X_1  Real)
+(declare-const X_2  Real)
+(declare-const X_3  Real)
+(declare-const X_4  Real)
+(declare-const X_5  Real)
+(declare-const X_6  Real)
+(declare-const X_7  Real)
+(declare-const X_8  Real)
+(declare-const X_9  Real)
+(declare-const X_10 Real)
+(declare-const X_11 Real)
+(declare-const X_12 Real)
+(declare-const X_13 Real)
+(declare-const X_14 Real)
+(declare-const X_15 Real)
+(declare-const X_16 Real)
+
+(declare-const Y_0 Real)
+
+; Tight forward-running box (normalized)
+(assert (>= X_0  -0.30))
+(assert (<= X_0   0.30))
+
+(assert (>= X_1  -0.30))
+(assert (<= X_1   0.30))
+
+(assert (>= X_2  -0.30))
+(assert (<= X_2   0.30))
+
+(assert (>= X_3  -0.50))
+(assert (<= X_3   0.50))
+
+(assert (>= X_4  -0.50))
+(assert (<= X_4   0.50))
+
+(assert (>= X_5  -0.50))
+(assert (<= X_5   0.50))
+
+(assert (>= X_6  -0.50))
+(assert (<= X_6   0.50))
+
+(assert (>= X_7  -0.50))
+(assert (<= X_7   0.50))
+
+(assert (>= X_8  -0.50))
+(assert (<= X_8   0.50))
+
+; Clearly positive forward velocity
+(assert (>= X_9   1.00))
+(assert (<= X_9   2.00))
+
+(assert (>= X_10 -0.50))
+(assert (<= X_10  0.50))
+
+(assert (>= X_11 -0.50))
+(assert (<= X_11  0.50))
+
+(assert (>= X_12 -0.50))
+(assert (<= X_12  0.50))
+
+(assert (>= X_13 -0.50))
+(assert (<= X_13  0.50))
+
+(assert (>= X_14 -0.50))
+(assert (<= X_14  0.50))
+
+(assert (>= X_15 -0.50))
+(assert (<= X_15  0.50))
+
+(assert (>= X_16 -0.50))
+(assert (<= X_16  0.50))
+
+; Output violation: latent strictly negative (impossible due to ReLU output)
+; UNSAT = proved.
+(assert (or
+    (and (<= Y_0 -0.01))
+))

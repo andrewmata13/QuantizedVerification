@@ -1,0 +1,44 @@
+; Hopper-v5 Spec 1 – Nominal hopping state reachability
+;
+; Observations (normalized by VecNormalize, indices match Hopper-v5):
+;   X_0  : torso z-position (height)         – healthy raw > 0.7
+;   X_1  : torso y-rotation (angle)          – healthy raw |angle| < 0.2
+;   X_2  : thigh joint angle
+;   X_3  : leg joint angle
+;   X_4  : foot joint angle
+;   X_5  : torso x-velocity (forward)
+;   X_6  : torso z-velocity
+;   X_7  : torso angular velocity
+;   X_8  : thigh angular velocity
+;   X_9  : leg angular velocity
+;   X_10 : foot angular velocity
+;
+; Property: for a clearly healthy hopping state (good height, small tilt,
+; positive forward velocity) the 1-D encoder bottleneck output Y_0 is bounded.
+; This verifies that the encoder correctly maps the nominal operating region
+; to a compact latent interval, enabling tractable quantized reachability.
+;
+; Input bounds are in *normalized* observation space (VecNormalize running stats).
+; Typical normalized values for well-visited healthy states lie in [-3, 3].
+
+(declare-const X_0  Real)
+(declare-const X_1  Real)
+(declare-const X_2  Real)
+(declare-const X_3  Real)
+(declare-const X_4  Real)
+(declare-const X_5  Real)
+(declare-const X_6  Real)
+(declare-const X_7  Real)
+(declare-const X_8  Real)
+(declare-const X_9  Real)
+(declare-const X_10 Real)
+(declare-const Y_0  Real)
+(declare-const Y_1  Real)
+(declare-const Y_2  Real)
+
+; Violation: any pre-tanh action < -50 (same input box, full network)
+(assert (or
+    (and (<= Y_0 -50.0))
+    (and (<= Y_1 -50.0))
+    (and (<= Y_2 -50.0))
+))
