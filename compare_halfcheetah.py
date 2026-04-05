@@ -34,8 +34,6 @@ from nnenum.onnx_network import load_onnx_network_optimized
 from nnenum.specification import Specification, DisjunctiveSpec
 from nnenum.vnnlib import read_vnnlib_simple, get_num_inputs_outputs
 
-from iq_verify.set_repr.star_set import StarSet
-from iq_verify.quant_reach.quantization_utils import QuantizationUtils
 
 N_INPUTS  = 17
 N_ACTIONS = 6
@@ -79,34 +77,41 @@ def verify(encoder_onnx, spec_path, latent_ctrl_path, quant_step=0.005, overappr
     enc_stars = res.stars
     t_encoder = time.time() - t0
 
-    # ── Step 2: convert to IQ-Verify StarSets ────────────────────────────────
+    # ── Steps 2 & 3: per-star LP output bounds → quantized grid ─────────────
+    # minimize_output() solves the star's LP exactly for each latent dimension,
+    # giving tight per-star output bounds without IQ-Verify conversion overhead.
+    # We generate the quantized grid for each star and deduplicate with np.unique.
     t1 = time.time()
-    iq_stars = []
+    all_pts = []
     for s in enc_stars:
-        try:
-            iq_stars.append(StarSet.from_nnenum_LpStar(s))
-        except Exception:
-            pass
+        star_lo = np.array([s.minimize_output(d, maximize=False) for d in range(n_latent)])
+        star_hi = np.array([s.minimize_output(d, maximize=True)  for d in range(n_latent)])
 
-    # ── Step 3: find quantized cell centers via bounding-box method ───────────
-    # For N-dim latent the grid is N-dimensional; stateset_to_qpoints handles this.
-    quant_params = [quant_step] * n_latent
-    reachable = set()
-    for iq_star in iq_stars:
-        for pt in QuantizationUtils.stateset_to_qpoints(iq_star, quant_params):
-            reachable.add(tuple(round(float(v), 6) for v in pt))
-    reachable = sorted(reachable)
+        axes = []
+        for d in range(n_latent):
+            first = np.floor(star_lo[d] / quant_step) * quant_step + quant_step / 2
+            last  = np.floor(star_hi[d] / quant_step) * quant_step + quant_step / 2
+            axes.append(np.arange(first, last + quant_step * 0.5, quant_step))
+        grids = np.meshgrid(*axes, indexing='ij')
+        pts = np.stack([g.ravel() for g in grids], axis=1)   # (k, n_latent)
+        all_pts.append(pts)
 
-    # ── Step 4: evaluate latent_ctrl → pre-tanh actions ──────────────────────
-    latent_ctrl = torch.load(latent_ctrl_path, weights_only=False).cpu().eval()
+    if all_pts:
+        all_pts = np.concatenate(all_pts, axis=0)
+        all_pts = np.round(all_pts, 6)
+        reachable = np.unique(all_pts, axis=0)   # (N_cells, n_latent)
+    else:
+        reachable = np.zeros((0, n_latent))
+
+    # ── Step 4: single batched GPU forward pass ───────────────────────────────
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    latent_ctrl = torch.load(latent_ctrl_path, weights_only=False).to(device).eval()
     cells = []
-    with torch.no_grad():
-        for c in reachable:
-            z = torch.tensor([list(c)], dtype=torch.float32)
-            action = latent_ctrl(z).squeeze().tolist()
-            if not isinstance(action, list):
-                action = [action]
-            cells.append((c, action))
+    if len(reachable):
+        with torch.no_grad():
+            z_batch = torch.tensor(reachable, dtype=torch.float32).to(device)
+            actions_batch = latent_ctrl(z_batch).cpu().numpy()  # (N_cells, n_actions)
+        cells = list(zip([tuple(r) for r in reachable], actions_batch.tolist()))
 
     # ── Step 5: check action violations ──────────────────────────────────────
     if len(action_spec_list) == 1:
@@ -115,7 +120,7 @@ def verify(encoder_onnx, spec_path, latent_ctrl_path, quant_step=0.005, overappr
     else:
         checker = DisjunctiveSpec([Specification(m, r) for m, r in action_spec_list])
 
-    violations = [(c, a) for c, a in cells if checker.is_violation(np.array(a))]
+    violations = [(c, a) for c, a in cells if checker.is_violation(np.array(a, dtype=float))]
     t_quant = time.time() - t1
 
     result = "unsafe" if violations else "safe"
@@ -125,7 +130,6 @@ def verify(encoder_onnx, spec_path, latent_ctrl_path, quant_step=0.005, overappr
         t_quant=t_quant,
         t_total=t_encoder + t_quant,
         n_stars=len(enc_stars),
-        n_iq_stars=len(iq_stars),
         n_cells=len(reachable),
         n_latent=n_latent,
         cells=cells,
@@ -139,7 +143,7 @@ def print_result(spec_id, spec_path, r):
     print(f"Spec {spec_id}: {spec_path}")
     print(f"{'='*60}")
     print(f"  Result      : {r['result'].upper()}")
-    print(f"  Stars       : {r['n_stars']} nnenum  →  {r['n_iq_stars']} IQ-Verify")
+    print(f"  Stars       : {r['n_stars']}")
     print(f"  Cells       : {r['n_cells']}")
     print(f"  Time        : encoder={r['t_encoder']:.3f}s  quant+eval={r['t_quant']:.3f}s  "
           f"total={r['t_total']:.3f}s")
@@ -160,12 +164,23 @@ def print_result(spec_id, spec_path, r):
             print(f"  ... ({len(r['cells']) - 30} more cells not shown)")
 
 
+ROB_RUN_LABELS = {
+    "sac_sweep_runs/HalfCheetah-v4/arch0/seed0":   "latent1",
+    "sac_sweep_runs/HalfCheetah-v4/latent2/seed0": "latent2",
+    "sac_sweep_runs/HalfCheetah-v4/latent3/seed0": "latent3",
+}
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--run_dir",    default="sac_sweep_runs/HalfCheetah-v4/arch0/seed0")
     ap.add_argument("--spec_id",    type=int, default=None,
                     help="Single spec to run: 4, 5, 6, or 7.  Omit to run all.")
-    ap.add_argument("--all",        action="store_true", help="Run all specs 4-7")
+    ap.add_argument("--all",        action="store_true", help="Run safety specs 4-7")
+    ap.add_argument("--rob",        action="store_true",
+                    help="Run robustness specs (rob_spec_4..7) for this run_dir")
+    ap.add_argument("--rob_all",    action="store_true",
+                    help="Run robustness specs for all three latent controllers")
     ap.add_argument("--quant_step", type=float, default=0.005)
     ap.add_argument("--overapprox", action="store_true", default=True)
     args = ap.parse_args()
@@ -173,6 +188,44 @@ def main():
     encoder_onnx = os.path.join(args.run_dir, "encoder.onnx")
     latent_ctrl  = os.path.join(args.run_dir, "latent_controller_full.pth")
 
+    # ── Robustness spec mode ──────────────────────────────────────────────────
+    if args.rob_all:
+        run_dirs = list(ROB_RUN_LABELS.keys())
+    elif args.rob:
+        run_dirs = [args.run_dir]
+    else:
+        run_dirs = None
+
+    if run_dirs is not None:
+        all_results = {}   # (run_label, base_sid) -> result
+        for rd in run_dirs:
+            label = ROB_RUN_LABELS.get(rd, os.path.basename(os.path.dirname(rd)))
+            enc   = os.path.join(rd, "encoder.onnx")
+            ctrl  = os.path.join(rd, "latent_controller_full.pth")
+            print(f"\n=== {label} ===")
+            for base_sid in [4, 5, 6, 7]:
+                sp = f"specs/HalfCheetah-v4/rob_spec_{base_sid}_{label}.vnnlib"
+                if not os.path.exists(sp):
+                    print(f"  Missing {sp} — run gen_robustness_specs.py first")
+                    continue
+                print(f"  Running rob_spec_{base_sid} ...")
+                r = verify(enc, sp, ctrl,
+                           quant_step=args.quant_step, overapprox=args.overapprox)
+                all_results[(label, base_sid)] = r
+
+        # Summary table
+        print(f"\n{'='*70}")
+        print(f"ROBUSTNESS SUMMARY  (quant_step={args.quant_step})")
+        print(f"{'='*70}")
+        print(f"  {'Controller':<10}  {'Spec':<8}  {'Result':<8}  {'Stars':>6}  "
+              f"{'Cells':>8}  {'Total(s)':>9}")
+        print(f"  {'─'*10}  {'─'*8}  {'─'*8}  {'─'*6}  {'─'*8}  {'─'*9}")
+        for (label, sid), r in sorted(all_results.items()):
+            print(f"  {label:<10}  rob_{sid:<5}  {r['result']:<8}  {r['n_stars']:>6}  "
+                  f"{r['n_cells']:>8}  {r['t_total']:>9.3f}")
+        return
+
+    # ── Safety spec mode (original) ───────────────────────────────────────────
     spec_ids = [4, 5, 6, 7] if (args.all or args.spec_id is None) else [args.spec_id]
 
     results = {}
