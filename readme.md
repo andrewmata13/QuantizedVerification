@@ -76,13 +76,15 @@ Each run saves to `sac_sweep_runs/<env>/<run_name>/seed0/`:
 - `encoder_full.pth`, `latent_controller_full.pth` — PyTorch modules
 - `train_vec_norm.pkl` — VecNormalize running statistics
 
-### Policy Performance (HalfCheetah-v4)
+### Policy Performance (HalfCheetah-v4, 10 episodes)
 
-| Architecture | Latent dim | Training steps | Mean return (10 eps) |
-|---|---|---|---|
-| `[16, 1, 512, 512]` | 1 | 5M | 6663 ± 92 |
-| `[16, 2, 512, 512]` | 2 | 3M | 9265 ± 170 |
-| `[16, 3, 512, 512]` | 3 | 3M | 13550 ± 31 |
+"Quantized" uses quant_step=0.005 (same as verification). Returns are near-identical to the clean controller, confirming the quantization grid is fine enough to not degrade policy quality.
+
+| Architecture | Latent dim | Training steps | Clean return | Quantized return (q=0.005) |
+|---|---|---|---|---|
+| `[16, 1, 512, 512]` | 1 | 5M | 6683 ± 98 | 6683 ± 60 |
+| `[16, 2, 512, 512]` | 2 | 3M | 8705 ± 1644 | 9276 ± 79 |
+| `[16, 3, 512, 512]` | 3 | 3M | 13522 ± 59 | 13506 ± 62 |
 
 ---
 
