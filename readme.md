@@ -13,11 +13,16 @@ conda install -c conda-forge cvxpy cvxopt swiglpk
 conda install -c gurobi gurobi
 conda install -c mosek mosek
 
-pip install -r requirements
+pip install -r requirements.txt
 pip install --upgrade onnxscript
 
 cd nnenum_package/nnenum
 pip install .
+cd ../..
+
+cd nnenum_package/iq_verify
+pip install .
+cd ../..
 ```
 
 **Note:** nnenum requires single-threaded BLAS. Always run with:
@@ -27,7 +32,7 @@ OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python <script>.py
 
 If you see a `CXXABI_1.3.15` error:
 ```bash
-export LD_LIBRARY_PATH=/home/andg/anaconda3/envs/quant-env/lib:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
 ```
 
 ---
