@@ -122,7 +122,7 @@ python compare_halfcheetah.py --all --run_dir sac_sweep_runs/HalfCheetah-v4/late
 
 ## HalfCheetah-v4 Specifications
 
-All specs use the same 17-input observation space (VecNormalize-normalized). Input boxes are computed from rollout data (p2/p98 or p10/p90 percentiles conditioned on a behavioral mask). Outputs are 6 pre-tanh joint torques.
+All specs use the same 17-input observation space (VecNormalize-normalized). Input boxes are computed from rollout data conditioned on a behavioral mask (e.g. "forward velocity above 1.0"): each observation dimension's bounds are set to the 2nd–98th or 10th–90th percentile of observed values in that regime. Tighter percentile ranges (p10/p90) give a smaller, more conservative input box; wider ranges (p2/p98) cover more of the tail behavior. Outputs are 6 pre-tanh joint torques.
 
 ### Observation layout
 
@@ -149,10 +149,10 @@ All specs use the same 17-input observation space (VecNormalize-normalized). Inp
 
 | Spec | Behavioral regime | Input box | Violation | Expected result |
 |---|---|---|---|---|
-| spec_1 | Nominal balanced running | p10/p90, xvel ∈ [0.67, 1.21], \|pitch\| ≤ 0.3 | Y_4 ≥ 3.5 (front knee extreme up) | **SAFE** |
+| spec_1 | Nominal balanced running | 10th–90th percentile box, xvel ∈ [0.67, 1.21], \|pitch\| ≤ 0.3 | Y_4 ≥ 3.5 (front knee extreme up) | **SAFE** |
 | spec_2 | Nominal balanced running | same as spec_1 | Y_4 ≤ −3.5 (front knee extreme down) | **SAFE** |
-| spec_3 | Pitch instability | p2/p98, pitch ≥ 0.8 (tumbling) | any Y_i ≥ 3.0 | **SAFE** |
-| spec_4 | Tight nominal running | p10/p90, xvel ∈ [0.67, 1.21], \|pitch\| ≤ 0.3 | Y_4 ≥ 0.5 (front knee applies torque) | **UNSAFE** |
+| spec_3 | Pitch instability | 2nd–98th percentile box, pitch ≥ 0.8 (tumbling) | any Y_i ≥ 3.0 | **SAFE** |
+| spec_4 | Tight nominal running | 10th–90th percentile box, xvel ∈ [0.67, 1.21], \|pitch\| ≤ 0.3 | Y_4 ≥ 0.5 (front knee applies torque) | **UNSAFE** |
 
 **spec_1/2:** Prove the front knee never fully saturates (pre-tanh ±3.5) during normal gait. Observed pre-tanh range is [−1.98, +2.13], well inside the threshold.
 
