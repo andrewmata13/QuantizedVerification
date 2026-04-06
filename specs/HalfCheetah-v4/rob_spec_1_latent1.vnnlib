@@ -1,7 +1,7 @@
-; Robustness spec — latent2, reference=spec_7 midpoint, quant_step=0.05
+; Robustness spec — latent1, reference=spec_4 midpoint, quant_step=0.05
 ; Input box: reference obs ± eps=0.001, clipped to ±10.0
 ; Violation: any pre-tanh action deviates from reference by > delta=0.5
-; Reference pre-tanh actions: ['1.9555', '-0.1602', '2.0301', '-0.1618', '-1.3572', '-1.6123']
+; Reference pre-tanh actions: ['0.1538', '1.1278', '0.1189', '-0.2606', '-1.3458', '-0.5324']
 
 (declare-const X_0  Real)
 (declare-const X_1  Real)
@@ -64,16 +64,16 @@
 
 ; Violation: |Y_j - a_ref_j| > delta=0.5 for any j
 (assert (or
-    (and (>= Y_0 +2.455469))
-    (and (<= Y_0 +1.455469))
-    (and (>= Y_1 +0.339753))
-    (and (<= Y_1 -0.660247))
-    (and (>= Y_2 +2.530111))
-    (and (<= Y_2 +1.530111))
-    (and (>= Y_3 +0.338246))
-    (and (<= Y_3 -0.661754))
-    (and (>= Y_4 -0.857197))
-    (and (<= Y_4 -1.857197))
-    (and (>= Y_5 -1.112331))
-    (and (<= Y_5 -2.112331))
+    (and (>= Y_0 +0.653827))
+    (and (<= Y_0 -0.346173))
+    (and (>= Y_1 +1.627763))
+    (and (<= Y_1 +0.627763))
+    (and (>= Y_2 +0.618865))
+    (and (<= Y_2 -0.381135))
+    (and (>= Y_3 +0.239439))
+    (and (<= Y_3 -0.760561))
+    (and (>= Y_4 -0.845773))
+    (and (<= Y_4 -1.845773))
+    (and (>= Y_5 -0.032384))
+    (and (<= Y_5 -1.032384))
 ))

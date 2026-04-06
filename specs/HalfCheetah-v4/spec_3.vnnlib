@@ -1,11 +1,10 @@
-; HalfCheetah-v4 Spec 3 – Latent sign check for forward-running state
-;
-; For a state where HalfCheetah is actively moving forward (positive forward
-; velocity, stable posture), check if the encoder latent Y_0 can be negative
-; (i.e. Y_0 < -0.01).  Since the encoder ends in ReLU, this is always UNSAT.
-;
-; After training and running generate_halfcheetah_specs.py, this spec will be
-; calibrated with a tighter, semantically-meaningful threshold.
+; HalfCheetah-v4 Spec 3 — Pitch instability: extreme action during tumbling
+; Input box: p2/p98 of normalized obs when pitch_norm >= 0.8 (large forward tilt).
+; Violation: any pre-tanh action Y_i >= 3.0
+;   (nominal running actions stay within ~[-2, 2] pre-tanh;
+;    pitch-instability latent reaches ~9.83, driving actions far outside nominal range).
+; SAT  = some pitch-unstable state produces an extreme actuator command.
+; UNSAT = encoder keeps all pitch-unstable actions within normal range.
 
 (declare-const X_0  Real)
 (declare-const X_1  Real)
@@ -24,64 +23,71 @@
 (declare-const X_14 Real)
 (declare-const X_15 Real)
 (declare-const X_16 Real)
+(declare-const Y_0  Real)
+(declare-const Y_1  Real)
+(declare-const Y_2  Real)
+(declare-const Y_3  Real)
+(declare-const Y_4  Real)
+(declare-const Y_5  Real)
 
-(declare-const Y_0 Real)
+(assert (>= X_0  -1.3221))
+(assert (<= X_0  +5.6406))
 
-; Tight forward-running box (normalized)
-(assert (>= X_0  -0.30))
-(assert (<= X_0   0.30))
+(assert (>= X_1  +0.8025))
+(assert (<= X_1  +3.7262))
 
-(assert (>= X_1  -0.30))
-(assert (<= X_1   0.30))
+(assert (>= X_2  -1.4352))
+(assert (<= X_2  +0.9880))
 
-(assert (>= X_2  -0.30))
-(assert (<= X_2   0.30))
+(assert (>= X_3  -3.4735))
+(assert (<= X_3  +0.4919))
 
-(assert (>= X_3  -0.50))
-(assert (<= X_3   0.50))
+(assert (>= X_4  -1.1898))
+(assert (<= X_4  +1.4180))
 
-(assert (>= X_4  -0.50))
-(assert (<= X_4   0.50))
+(assert (>= X_5  -1.8975))
+(assert (<= X_5  +1.5671))
 
-(assert (>= X_5  -0.50))
-(assert (<= X_5   0.50))
+(assert (>= X_6  -1.6824))
+(assert (<= X_6  +1.9515))
 
-(assert (>= X_6  -0.50))
-(assert (<= X_6   0.50))
+(assert (>= X_7  -1.4818))
+(assert (<= X_7  +1.6714))
 
-(assert (>= X_7  -0.50))
-(assert (<= X_7   0.50))
+(assert (>= X_8  -1.8722))
+(assert (<= X_8  +1.8728))
 
-(assert (>= X_8  -0.50))
-(assert (<= X_8   0.50))
+(assert (>= X_9  -2.1671))
+(assert (<= X_9  +1.2580))
 
-; Clearly positive forward velocity
-(assert (>= X_9   1.00))
-(assert (<= X_9   2.00))
+(assert (>= X_10 -2.4178))
+(assert (<= X_10 +2.5809))
 
-(assert (>= X_10 -0.50))
-(assert (<= X_10  0.50))
+(assert (>= X_11 -0.5258))
+(assert (<= X_11 +1.7952))
 
-(assert (>= X_11 -0.50))
-(assert (<= X_11  0.50))
+(assert (>= X_12 -1.7432))
+(assert (<= X_12 +1.6984))
 
-(assert (>= X_12 -0.50))
-(assert (<= X_12  0.50))
+(assert (>= X_13 -0.6707))
+(assert (<= X_13 +2.1449))
 
-(assert (>= X_13 -0.50))
-(assert (<= X_13  0.50))
+(assert (>= X_14 -1.5439))
+(assert (<= X_14 +2.1199))
 
-(assert (>= X_14 -0.50))
-(assert (<= X_14  0.50))
+(assert (>= X_15 -0.9437))
+(assert (<= X_15 +2.2762))
 
-(assert (>= X_15 -0.50))
-(assert (<= X_15  0.50))
+(assert (>= X_16 -1.8193))
+(assert (<= X_16 +1.1948))
 
-(assert (>= X_16 -0.50))
-(assert (<= X_16  0.50))
-
-; Output violation: latent strictly negative (impossible due to ReLU output)
-; UNSAT = proved.
+; Violation: any pre-tanh action >= 3.0 (extreme actuator command during pitch instability).
+; SAT expected: latent reaches ~9.83 during pitch instability, far above nominal range.
 (assert (or
-    (and (<= Y_0 -0.01))
+    (and (>= Y_0 +3.0000))
+    (and (>= Y_1 +3.0000))
+    (and (>= Y_2 +3.0000))
+    (and (>= Y_3 +3.0000))
+    (and (>= Y_4 +3.0000))
+    (and (>= Y_5 +3.0000))
 ))

@@ -15,7 +15,7 @@ Method: Encoder nnenum + IQ-Verify quantized lookup
 Canonical spec format: X_0..X_16 = normalized obs, Y_0..Y_5 = pre-tanh actions.
 
 Usage:
-    python compare_halfcheetah.py [--run_dir ...] [--spec_id 4|5|6|7] [--quant_step 0.005]
+    python compare_halfcheetah.py [--run_dir ...] [--spec_id 1|2|3|4] [--quant_step 0.005]
     python compare_halfcheetah.py --all
 """
 
@@ -175,10 +175,10 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--run_dir",    default="sac_sweep_runs/HalfCheetah-v4/arch0/seed0")
     ap.add_argument("--spec_id",    type=int, default=None,
-                    help="Single spec to run: 4, 5, 6, or 7.  Omit to run all.")
-    ap.add_argument("--all",        action="store_true", help="Run safety specs 4-7")
+                    help="Single spec to run: 1, 2, 3, or 4.  Omit to run all.")
+    ap.add_argument("--all",        action="store_true", help="Run safety specs 1-4")
     ap.add_argument("--rob",        action="store_true",
-                    help="Run robustness specs (rob_spec_4..7) for this run_dir")
+                    help="Run robustness specs (rob_spec_1..4) for this run_dir")
     ap.add_argument("--rob_all",    action="store_true",
                     help="Run robustness specs for all three latent controllers")
     ap.add_argument("--quant_step", type=float, default=0.005)
@@ -203,7 +203,7 @@ def main():
             enc   = os.path.join(rd, "encoder.onnx")
             ctrl  = os.path.join(rd, "latent_controller_full.pth")
             print(f"\n=== {label} ===")
-            for base_sid in [4, 5, 6, 7]:
+            for base_sid in [1, 2, 3, 4]:
                 sp = f"specs/HalfCheetah-v4/rob_spec_{base_sid}_{label}.vnnlib"
                 if not os.path.exists(sp):
                     print(f"  Missing {sp} — run gen_robustness_specs.py first")
@@ -226,7 +226,7 @@ def main():
         return
 
     # ── Safety spec mode (original) ───────────────────────────────────────────
-    spec_ids = [4, 5, 6, 7] if (args.all or args.spec_id is None) else [args.spec_id]
+    spec_ids = [1, 2, 3, 4] if (args.all or args.spec_id is None) else [args.spec_id]
 
     results = {}
     for sid in spec_ids:

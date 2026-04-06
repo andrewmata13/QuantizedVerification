@@ -1,10 +1,11 @@
-; HalfCheetah-v4 Spec 4 — Nominal balanced running: front-shin not fully saturated (upper)
+; HalfCheetah-v4 Spec 4 — Nominal balanced running (tight): reachable gait actions
 ; Input box: p10/p90 of normalized obs during balanced mid-speed running
 ;   (xvel_norm in [0.5,1.5], |pitch| <= 0.3, |height| <= 0.4).
-; Violation: pre-tanh front-shin action Y_4 >= 3.5
-;   (observed max pre-tanh ~ 2.13; threshold well above that).
-; SAFE = front-shin never fully saturates upward in this operating region.
-; SAT  = some corner of the nominal box maps to extreme front-shin torque.
+; Violation: pre-tanh front-shin action Y_4 >= 0.5
+;   (cells from balanced-running box reach up to a4_pretanh ~ 2.09;
+;    threshold of 0.5 is within the reachable gait cycle range).
+; SAT  = the tight nominal box contains states that produce moderate front-shin torque.
+; UNSAT = encoder always maps this tight nominal box to low front-shin torque.
 
 (declare-const X_0  Real)
 (declare-const X_1  Real)
@@ -81,8 +82,8 @@
 (assert (>= X_16 +0.8883))
 (assert (<= X_16 +1.3336))
 
-; Violation: front-shin pre-tanh action (Y_4) >= 3.5.
-; Observed max pre-tanh ~ 2.13 during nominal running.  SAFE expected.
+; Violation: front-shin pre-tanh action (Y_4) >= 0.5.
+; Cells from this box reach a4_pretanh up to ~2.09.  SAT expected.
 (assert (or
-    (and (>= Y_4 +3.5000))
+    (and (>= Y_4 +0.5000))
 ))

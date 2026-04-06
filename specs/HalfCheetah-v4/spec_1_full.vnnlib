@@ -1,27 +1,6 @@
-; HalfCheetah-v4 Spec 1 – Nominal running state reachability
-;
-; Observations (normalized by VecNormalize, indices match HalfCheetah-v4):
-;   X_0  : z-position of torso (height)
-;   X_1  : y-rotation of torso (pitch angle)
-;   X_2  : x-rotation of torso (roll angle)  -- often excluded but present
-;   X_3  : back-thigh joint angle
-;   X_4  : back-shin joint angle
-;   X_5  : back-foot joint angle
-;   X_6  : front-thigh joint angle
-;   X_7  : front-shin joint angle
-;   X_8  : front-foot joint angle
-;   X_9  : x-velocity of torso (forward)
-;   X_10 : y-velocity of torso
-;   X_11 : z-velocity of torso
-;   X_12 : back-thigh angular velocity
-;   X_13 : back-shin angular velocity
-;   X_14 : back-foot angular velocity
-;   X_15 : front-thigh angular velocity
-;   X_16 : front-foot angular velocity
-;
-; Property: for a nominal running state (moderate forward velocity, small
-; body tilt, joints in normal range) the 1-D encoder bottleneck Y_0 is bounded.
-; Input bounds are in *normalized* observation space (VecNormalize running stats).
+; HalfCheetah-v4 Spec 4 (full network) — Front-shin torque bounded above
+; Same input as spec_4.  Proves front-shin actuator never fully saturates.
+; SAFE expected (pre-tanh max ~ 2.13 << 3.5).
 
 (declare-const X_0  Real)
 (declare-const X_1  Real)
@@ -47,12 +26,59 @@
 (declare-const Y_4  Real)
 (declare-const Y_5  Real)
 
-; Violation: any pre-tanh action < -50 (full network, same input box)
+(assert (>= X_0  -0.3175))
+(assert (<= X_0  +0.3066))
+
+(assert (>= X_1  -0.2752))
+(assert (<= X_1  +0.0660))
+
+(assert (>= X_2  +0.9039))
+(assert (<= X_2  +1.7671))
+
+(assert (>= X_3  -1.5614))
+(assert (<= X_3  -0.5911))
+
+(assert (>= X_4  +0.2180))
+(assert (<= X_4  +1.7572))
+
+(assert (>= X_5  -0.2429))
+(assert (<= X_5  +1.2929))
+
+(assert (>= X_6  -0.3191))
+(assert (<= X_6  +1.4336))
+
+(assert (>= X_7  -0.8451))
+(assert (<= X_7  +0.7590))
+
+(assert (>= X_8  +0.3630))
+(assert (<= X_8  +2.3214))
+
+(assert (>= X_9  +0.6737))
+(assert (<= X_9  +1.2060))
+
+(assert (>= X_10 -1.4327))
+(assert (<= X_10 -0.1190))
+
+(assert (>= X_11 -0.8718))
+(assert (<= X_11 +2.2969))
+
+(assert (>= X_12 -1.1248))
+(assert (<= X_12 +1.0564))
+
+(assert (>= X_13 +0.4255))
+(assert (<= X_13 +1.5402))
+
+(assert (>= X_14 +0.3117))
+(assert (<= X_14 +1.9796))
+
+(assert (>= X_15 +0.4235))
+(assert (<= X_15 +2.0558))
+
+(assert (>= X_16 +0.8883))
+(assert (<= X_16 +1.3336))
+
+; Violation: front-shin (Y_4) pre-tanh > 3.5 (extreme positive saturation).
+; Observed max a4 post-tanh = 0.969 => pre-tanh ~ 2.13.  SAFE = never fully saturates.
 (assert (or
-    (and (<= Y_0 -50.0))
-    (and (<= Y_1 -50.0))
-    (and (<= Y_2 -50.0))
-    (and (<= Y_3 -50.0))
-    (and (<= Y_4 -50.0))
-    (and (<= Y_5 -50.0))
+    (and (>= Y_4 +3.5000))
 ))

@@ -18,10 +18,10 @@ HalfCheetah-v4 normalized observation layout (17 dims):
 All values are in VecNormalize normalized space.
 
 Specs generated:
-  spec_4  Cruising at high speed   — input tight around fast running; SAT expected
-  spec_5  Slow / recovery phase    — low forward velocity; SAT expected
-  spec_6  Pitch instability        — large forward pitch + low height; SAT expected
-  spec_7  Nominal balanced running — tight box from rollout p10/p90; UNSAT expected
+  spec_1  Cruising at high speed   — input tight around fast running; SAT expected
+  spec_2  Slow / recovery phase    — low forward velocity; SAT expected
+  spec_3  Pitch instability        — large forward pitch + low height; SAT expected
+  spec_4  Nominal balanced running — tight box from rollout p10/p90; UNSAT expected
 
 Usage:
     python generate_halfcheetah_specs.py [--run_dir ...] [--n_steps 20000]
@@ -141,7 +141,7 @@ def main():
               f"lat=[{z.min():.3f},{z.max():.3f}]  "
               f"p5={np.percentile(z,5):.3f}  p95={np.percentile(z,95):.3f}")
 
-    # ── spec_4: High-speed cruising ────────────────────────────────────────
+    # ── spec_1: High-speed cruising ────────────────────────────────────────
     # Fast forward running (xvel normalized ≥ 1.0).
     # Violation: latent escapes the observed fast-running range (> p99 + margin).
     # Expected SAT (wide input box; some extreme corners can push latent high).
@@ -149,10 +149,10 @@ def main():
         lo, hi = pct_box(obs, fast, plo=2, phi=98)
         lat_hi = np.percentile(lats[fast], 99) + 0.5   # generous upper bound
         write_spec(
-            f"{SPEC_DIR}/spec_4.vnnlib", lo, hi,
+            f"{SPEC_DIR}/spec_1.vnnlib", lo, hi,
             latent_violation=(None, lat_hi),
             comment=f"""\
-HalfCheetah-v4 Spec 4 — High-speed cruising
+HalfCheetah-v4 Spec 1 — High-speed cruising
 Input box: p2/p98 of normalized obs when xvel_norm >= 1.0 (fast running).
 Violation: latent Y_0 >= {lat_hi:.4f}
   (p99 of fast-running latent + 0.5 margin)
@@ -161,17 +161,17 @@ UNSAT = latent stays within {lat_hi:.4f} for all states in this box.""",
             violation_comment=f"Violation: latent exceeds fast-running range upper bound {lat_hi:.4f}",
         )
 
-    # ── spec_5: Slow / recovery ────────────────────────────────────────────
+    # ── spec_2: Slow / recovery ────────────────────────────────────────────
     # Below-average forward velocity. Policy is in a different behavioral regime.
     # Violation: same upper bound — do slow states push the latent higher than fast ones?
     if slow.sum() > 50:
         lo, hi = pct_box(obs, slow, plo=2, phi=98)
         lat_hi_fast = np.percentile(lats[fast], 95) if fast.sum() > 0 else 1.0
         write_spec(
-            f"{SPEC_DIR}/spec_5.vnnlib", lo, hi,
+            f"{SPEC_DIR}/spec_2.vnnlib", lo, hi,
             latent_violation=(None, lat_hi_fast),
             comment=f"""\
-HalfCheetah-v4 Spec 5 — Slow / recovery phase
+HalfCheetah-v4 Spec 2 — Slow / recovery phase
 Input box: p2/p98 of normalized obs when xvel_norm in [-0.3, 0.3].
 Violation: latent Y_0 >= {lat_hi_fast:.4f}
   (p95 of fast-running latent — slow states shouldn't look like fast running).
@@ -180,7 +180,7 @@ UNSAT = slow-phase latent always below fast-running regime.""",
             violation_comment=f"Violation: slow-phase latent exceeds fast-running threshold {lat_hi_fast:.4f}",
         )
 
-    # ── spec_6: Pitch instability ──────────────────────────────────────────
+    # ── spec_3: Pitch instability ──────────────────────────────────────────
     # Large forward pitch — cheetah is tumbling / falling forward.
     # Violation: latent > observed-max during stable running (p99 of full dataset).
     # SAT expected: unstable states can reach latent values far outside nominal range.
@@ -188,10 +188,10 @@ UNSAT = slow-phase latent always below fast-running regime.""",
         lo, hi = pct_box(obs, pitch, plo=2, phi=98)
         lat_hi_nominal = np.percentile(lats[nominal], 99) + 0.1 if nominal.sum() > 0 else 1.0
         write_spec(
-            f"{SPEC_DIR}/spec_6.vnnlib", lo, hi,
+            f"{SPEC_DIR}/spec_3.vnnlib", lo, hi,
             latent_violation=(None, lat_hi_nominal),
             comment=f"""\
-HalfCheetah-v4 Spec 6 — Pitch instability
+HalfCheetah-v4 Spec 3 — Pitch instability
 Input box: p2/p98 of normalized obs when pitch_norm >= 0.8 (large forward tilt).
 Violation: latent Y_0 >= {lat_hi_nominal:.4f}
   (p99 of nominal-running latent + 0.1 margin).
@@ -200,7 +200,7 @@ UNSAT = encoder keeps pitch-unstable states within the nominal latent range.""",
             violation_comment=f"Violation: pitch-instability latent exceeds nominal range {lat_hi_nominal:.4f}",
         )
 
-    # ── spec_7: Nominal balanced running (tight) ───────────────────────────
+    # ── spec_4: Nominal balanced running (tight) ───────────────────────────
     # Tight box around the most common balanced running state.
     # Violation: latent outside [p1, p99] of nominal latent range.
     # UNSAT expected: within this tight box the encoder should be well-behaved.
@@ -209,10 +209,10 @@ UNSAT = encoder keeps pitch-unstable states within the nominal latent range.""",
         lat_lo = np.percentile(lats[nominal], 1)
         lat_hi = np.percentile(lats[nominal], 99)
         write_spec(
-            f"{SPEC_DIR}/spec_7.vnnlib", lo, hi,
+            f"{SPEC_DIR}/spec_4.vnnlib", lo, hi,
             latent_violation=(lat_lo, lat_hi),
             comment=f"""\
-HalfCheetah-v4 Spec 7 — Nominal balanced running (tight)
+HalfCheetah-v4 Spec 4 — Nominal balanced running (tight)
 Input box: p10/p90 of normalized obs during balanced mid-speed running
   (xvel_norm in [0.5,1.5], |pitch| <= 0.3, |height| <= 0.4).
 Violation: latent Y_0 outside [{lat_lo:.4f}, {lat_hi:.4f}]

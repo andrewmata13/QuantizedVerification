@@ -76,11 +76,13 @@ Each run saves to `sac_sweep_runs/<env>/<run_name>/seed0/`:
 - `encoder_full.pth`, `latent_controller_full.pth` — PyTorch modules
 - `train_vec_norm.pkl` — VecNormalize running statistics
 
-### Policy Performance (HalfCheetah-v4, 5M steps)
+### Policy Performance (HalfCheetah-v4)
 
-| Architecture | Latent dim | Mean return | Notes
+| Architecture | Latent dim | Training steps | Mean return (10 eps) |
 |---|---|---|---|
-| `[16, 1, 512, 512]` | 1 | ~6700
+| `[16, 1, 512, 512]` | 1 | 5M | 6663 ± 92 |
+| `[16, 2, 512, 512]` | 2 | 3M | 9265 ± 170 |
+| `[16, 3, 512, 512]` | 3 | 3M | 13550 ± 31 |
 
 ---
 
@@ -110,7 +112,7 @@ For N-dimensional latent the quantized grid is N-dimensional; cell count grows a
 python compare_halfcheetah.py --all
 
 # Single spec
-python compare_halfcheetah.py --spec_id 4
+python compare_halfcheetah.py --spec_id 1
 
 # Different run dir (e.g. latent dim 2 after training)
 python compare_halfcheetah.py --all --run_dir sac_sweep_runs/HalfCheetah-v4/latent2/seed0
@@ -147,16 +149,16 @@ All specs use the same 17-input observation space (VecNormalize-normalized). Inp
 
 | Spec | Behavioral regime | Input box | Violation | Expected result |
 |---|---|---|---|---|
-| spec_4 | Nominal balanced running | p10/p90, xvel ∈ [0.67, 1.21], \|pitch\| ≤ 0.3 | Y_4 ≥ 3.5 (front knee extreme up) | **SAFE** |
-| spec_5 | Nominal balanced running | same as spec_4 | Y_4 ≤ −3.5 (front knee extreme down) | **SAFE** |
-| spec_6 | Pitch instability | p2/p98, pitch ≥ 0.8 (tumbling) | any Y_i ≥ 3.0 | **SAFE** |
-| spec_7 | Tight nominal running | p10/p90, xvel ∈ [0.67, 1.21], \|pitch\| ≤ 0.3 | Y_4 ≥ 0.5 (front knee applies torque) | **UNSAFE** |
+| spec_1 | Nominal balanced running | p10/p90, xvel ∈ [0.67, 1.21], \|pitch\| ≤ 0.3 | Y_4 ≥ 3.5 (front knee extreme up) | **SAFE** |
+| spec_2 | Nominal balanced running | same as spec_1 | Y_4 ≤ −3.5 (front knee extreme down) | **SAFE** |
+| spec_3 | Pitch instability | p2/p98, pitch ≥ 0.8 (tumbling) | any Y_i ≥ 3.0 | **SAFE** |
+| spec_4 | Tight nominal running | p10/p90, xvel ∈ [0.67, 1.21], \|pitch\| ≤ 0.3 | Y_4 ≥ 0.5 (front knee applies torque) | **UNSAFE** |
 
-**spec_4/5:** Prove the front knee never fully saturates (pre-tanh ±3.5) during normal gait. Observed pre-tanh range is [−1.98, +2.13], well inside the threshold.
+**spec_1/2:** Prove the front knee never fully saturates (pre-tanh ±3.5) during normal gait. Observed pre-tanh range is [−1.98, +2.13], well inside the threshold.
 
-**spec_6:** Prove no actuator exceeds pre-tanh 3.0 even during extreme pitch instability. Despite the latent reaching ~9.83 during tumbling, the policy stays in a moderate torque regime — holds across all 2076 reachable cells.
+**spec_3:** Prove no actuator exceeds pre-tanh 3.0 even during extreme pitch instability. Despite the latent reaching ~9.83 during tumbling, the policy stays in a moderate torque regime — holds across all 2076 reachable cells.
 
-**spec_7:** The front knee actively cycles through significant positive torques during normal running (pre-tanh up to ~2.09). The violation Y_4 ≥ 0.5 is expected to hold and confirms the gait cycle is reachable — 74 of 132 cells violate it.
+**spec_4:** The front knee actively cycles through significant positive torques during normal running (pre-tanh up to ~2.09). The violation Y_4 ≥ 0.5 is expected to hold and confirms the gait cycle is reachable — 74 of 132 cells violate it.
 
 ---
 
@@ -165,10 +167,10 @@ All specs use the same 17-input observation space (VecNormalize-normalized). Inp
 ```
   Spec      Result     Stars     Cells   Encoder(s)   Quant(s)   Total(s)
   ────────  ────────  ──────  ────────   ──────────  ─────────  ─────────
-  spec_4    safe         527       132        1.340      0.510      1.850
-  spec_5    safe         413       132        1.131      0.395      1.526
-  spec_6    safe         255      2076        1.113      0.481      1.594
-  spec_7    unsafe       414       132        1.178      0.398      1.576
+  spec_1    safe         527       132        1.340      0.510      1.850
+  spec_2    safe         413       132        1.131      0.395      1.526
+  spec_3    safe         255      2076        1.113      0.481      1.594
+  spec_4    unsafe       414       132        1.178      0.398      1.576
 ```
 
 All four specs complete in **1.5–1.9 seconds**. Encoder nnenum dominates (~70% of runtime); quantization and latent_ctrl evaluation across all cells adds < 0.5s.
@@ -189,7 +191,7 @@ Running nnenum on the full network (14 layers, 1024 ReLUs in the latent controll
 ├── generate_halfcheetah_specs.py  # Generate specs from rollout data
 ├── specs/
 │   ├── Hopper-v5/               # spec_1..4.vnnlib
-│   └── HalfCheetah-v4/          # spec_4..7.vnnlib (obs → action format)
+│   └── HalfCheetah-v4/          # spec_1..4.vnnlib (obs → action format)
 ├── sac_sweep_runs/
 │   ├── HalfCheetah-v4/arch0/seed0/    # latent dim 1
 │   ├── HalfCheetah-v4/latent2/seed0/  # latent dim 2 (after train_latent_sweep.py)

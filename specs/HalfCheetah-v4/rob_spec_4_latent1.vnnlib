@@ -1,4 +1,4 @@
-; Robustness spec — latent1, reference=spec_4 midpoint, quant_step=0.05
+; Robustness spec — latent1, reference=spec_7 midpoint, quant_step=0.05
 ; Input box: reference obs ± eps=0.001, clipped to ±10.0
 ; Violation: any pre-tanh action deviates from reference by > delta=0.5
 ; Reference pre-tanh actions: ['0.1538', '1.1278', '0.1189', '-0.2606', '-1.3458', '-0.5324']

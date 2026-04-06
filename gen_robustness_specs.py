@@ -8,7 +8,7 @@ Robustness spec:
   Violation  : ∃ j s.t. |Y_j - a_ref_j| > delta
              = disjunction: (Y_j >= a_ref_j + delta) OR (Y_j <= a_ref_j - delta)
 
-Reference states are the midpoints of the existing spec_4..7 input boxes — the same
+Reference states are the midpoints of the existing spec_1..4 input boxes — the same
 operating regions already used for safety verification.  For each latent controller,
 the reference pre-tanh action is evaluated by running the *quantized* controller
 (encoder ONNX → quantize → latent_ctrl) at the reference state.
@@ -36,10 +36,10 @@ N_INPUTS  = 17
 N_ACTIONS = 6
 
 SPEC_PATHS = [
+    "specs/HalfCheetah-v4/spec_1.vnnlib",
+    "specs/HalfCheetah-v4/spec_2.vnnlib",
+    "specs/HalfCheetah-v4/spec_3.vnnlib",
     "specs/HalfCheetah-v4/spec_4.vnnlib",
-    "specs/HalfCheetah-v4/spec_5.vnnlib",
-    "specs/HalfCheetah-v4/spec_6.vnnlib",
-    "specs/HalfCheetah-v4/spec_7.vnnlib",
 ]
 
 RUN_DIRS = {
@@ -157,7 +157,7 @@ def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     out_dir = "specs/HalfCheetah-v4"
 
-    # Compute reference states: midpoints of spec_4..7 input boxes
+    # Compute reference states: midpoints of spec_1..4 input boxes
     ref_states = {}
     for sp in SPEC_PATHS:
         sid = os.path.basename(sp).replace(".vnnlib", "")   # spec_4 ... spec_7
