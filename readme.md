@@ -168,15 +168,17 @@ All specs use the same 17-input observation space (VecNormalize-normalized). Inp
 
 Quant steps chosen as the largest value keeping quantized return within ~5% of clean. Cell count and timing scale as O((range/q)^N) where N is the latent dim.
 
+Cell enumeration uses global min/max across all encoder output stars per latent dimension — O(S×D) instead of O(N log N) deduplication. This is a slight overapproximation relative to per-star bounding boxes but eliminates the sorting bottleneck entirely.
+
 ### latent dim = 1, quant_step = 0.02
 
 ```
   Spec      Result     Stars     Cells   Encoder(s)   Quant(s)   Total(s)
   ────────  ────────  ──────  ────────   ──────────  ─────────  ─────────
-  spec_1    safe         334        34        1.219      0.546      1.765
-  spec_2    safe         570        34        1.567      0.049      1.617
-  spec_3    safe         252       520        1.293      0.038      1.331
-  spec_4    unsafe      1061        34        1.538      0.092      1.630
+  spec_1    safe         234        32        1.140      0.472      1.612
+  spec_2    safe         273        34        1.191      0.022      1.213
+  spec_3    safe         728       544        1.496      0.069      1.565
+  spec_4    unsafe       750        34        1.404      0.056      1.460
 ```
 
 ### latent dim = 2, quant_step = 0.1
@@ -184,10 +186,10 @@ Quant steps chosen as the largest value keeping quantized return within ~5% of c
 ```
   Spec      Result     Stars     Cells   Encoder(s)   Quant(s)   Total(s)
   ────────  ────────  ──────  ────────   ──────────  ─────────  ─────────
-  spec_1    safe          40      1831        0.924      0.479      1.404
-  spec_2    safe         699      2606        1.510      0.213      1.724
-  spec_3    unsafe       622      9286        1.489      0.273      1.762
-  spec_4    unsafe       288      2306        1.331      0.096      1.427
+  spec_1    safe         105      4386        1.102      0.473      1.574
+  spec_2    safe        1071      7030        1.592      0.145      1.737
+  spec_3    unsafe       632     16848        1.555      0.144      1.700
+  spec_4    unsafe       874      7215        1.667      0.186      1.853
 ```
 
 ### latent dim = 3, quant_step = 0.05
@@ -195,13 +197,13 @@ Quant steps chosen as the largest value keeping quantized return within ~5% of c
 ```
   Spec      Result     Stars      Cells   Encoder(s)   Quant(s)   Total(s)
   ────────  ────────  ──────  ---------   ──────────  ─────────  ─────────
-  spec_1    unsafe       120    1843388        1.095     17.543     18.638
-  spec_2    unsafe      1034    1965783        2.509     36.409     38.918
-  spec_3    unsafe       430   17298098        3.613    437.918    441.531  ⚠
-  spec_4    unsafe      1034    1965783        7.357     37.473     44.831
+  spec_1    unsafe       168    2141916        1.050      4.924      5.974
+  spec_2    unsafe      1034    2345908        2.279      4.501      6.779
+  spec_3    unsafe       574   18358200        3.536     69.570     73.106  ⚠
+  spec_4    unsafe      1034    2345908        7.842      3.550     11.392
 ```
 
-⚠ spec_3 for latent dim 3 generates 17M cells due to the large latent range during pitch-instability states; coarser quantization is needed to make it tractable.
+⚠ spec_3 for latent dim 3 generates 18M cells due to the large latent range during pitch-instability states. Down from 441s to 73s after replacing O(N log N) dedup with O(S×D) global min/max; completeness filtering for large grids is a work in progress.
 
 Encoder nnenum dominates for latent dim 1 (~75% of runtime). For higher dims the quantized evaluation becomes the bottleneck as cell count grows cubically.
 

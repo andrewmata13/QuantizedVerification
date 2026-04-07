@@ -78,37 +78,35 @@ def verify(encoder_onnx, spec_path, latent_ctrl_path, quant_step=0.005, overappr
     t_encoder = time.time() - t0
 
     # ── Steps 2 & 3: per-star LP output bounds → quantized grid ─────────────
-    # minimize_output() solves the star's LP exactly for each latent dimension,
-    # giving tight per-star output bounds without IQ-Verify conversion overhead.
-    # We generate the quantized grid for each star and deduplicate with np.unique.
+    # Compute global min/max across all stars per latent dimension, then build
+    # one grid. Since all per-star grids share the same lattice, their union
+    # equals the grid over [global_min, global_max] — no concatenation or
+    # deduplication needed (O(S*D) instead of O(N log N)).
     t1 = time.time()
-    all_pts = []
+    global_lo = np.full(n_latent,  np.inf)
+    global_hi = np.full(n_latent, -np.inf)
     for s in enc_stars:
-        star_lo = np.array([s.minimize_output(d, maximize=False) for d in range(n_latent)])
-        star_hi = np.array([s.minimize_output(d, maximize=True)  for d in range(n_latent)])
+        for d in range(n_latent):
+            global_lo[d] = min(global_lo[d], s.minimize_output(d, maximize=False))
+            global_hi[d] = max(global_hi[d], s.minimize_output(d, maximize=True))
 
+    if np.any(global_lo == np.inf):
+        reachable = np.zeros((0, n_latent))
+    else:
         axes = []
         for d in range(n_latent):
-            first = np.floor(star_lo[d] / quant_step) * quant_step + quant_step / 2
-            last  = np.floor(star_hi[d] / quant_step) * quant_step + quant_step / 2
+            first = np.floor(global_lo[d] / quant_step) * quant_step + quant_step / 2
+            last  = np.floor(global_hi[d] / quant_step) * quant_step + quant_step / 2
             axes.append(np.arange(first, last + quant_step * 0.5, quant_step))
         grids = np.meshgrid(*axes, indexing='ij')
-        pts = np.stack([g.ravel() for g in grids], axis=1)   # (k, n_latent)
-        all_pts.append(pts)
-
-    if all_pts:
-        all_pts = np.concatenate(all_pts, axis=0)
-        all_pts = np.round(all_pts, 6)
-        reachable = np.unique(all_pts, axis=0)   # (N_cells, n_latent)
-    else:
-        reachable = np.zeros((0, n_latent))
+        reachable = np.stack([g.ravel() for g in grids], axis=1).astype(np.float32)
 
     # ── Step 4: chunked batched GPU forward pass ──────────────────────────────
     device = "cuda" if torch.cuda.is_available() else "cpu"
     latent_ctrl = torch.load(latent_ctrl_path, weights_only=False).to(device).eval()
     cells = []
     if len(reachable):
-        chunk_size = 100_000
+        chunk_size = 500_000
         actions_parts = []
         with torch.no_grad():
             for i in range(0, len(reachable), chunk_size):
