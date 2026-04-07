@@ -103,14 +103,18 @@ def verify(encoder_onnx, spec_path, latent_ctrl_path, quant_step=0.005, overappr
     else:
         reachable = np.zeros((0, n_latent))
 
-    # ── Step 4: single batched GPU forward pass ───────────────────────────────
+    # ── Step 4: chunked batched GPU forward pass ──────────────────────────────
     device = "cuda" if torch.cuda.is_available() else "cpu"
     latent_ctrl = torch.load(latent_ctrl_path, weights_only=False).to(device).eval()
     cells = []
     if len(reachable):
+        chunk_size = 100_000
+        actions_parts = []
         with torch.no_grad():
-            z_batch = torch.tensor(reachable, dtype=torch.float32).to(device)
-            actions_batch = latent_ctrl(z_batch).cpu().numpy()  # (N_cells, n_actions)
+            for i in range(0, len(reachable), chunk_size):
+                z_chunk = torch.tensor(reachable[i:i+chunk_size], dtype=torch.float32).to(device)
+                actions_parts.append(latent_ctrl(z_chunk).cpu().numpy())
+        actions_batch = np.concatenate(actions_parts, axis=0)
         cells = list(zip([tuple(r) for r in reachable], actions_batch.tolist()))
 
     # ── Step 5: check action violations ──────────────────────────────────────

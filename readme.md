@@ -78,13 +78,13 @@ Each run saves to `sac_sweep_runs/<env>/<run_name>/seed0/`:
 
 ### Policy Performance (HalfCheetah-v4, 10 episodes)
 
-"Quantized" uses quant_step=0.005 (same as verification). Returns are near-identical to the clean controller, confirming the quantization grid is fine enough to not degrade policy quality.
+Each controller uses the largest quant_step that keeps quantized return within ~5% of clean. Larger latent dims tolerate coarser grids.
 
-| Architecture | Clean return | Quantized return (q=0.005) |
-|---|---|---|
-| `[16, 1, 512, 512]` | 6683 ± 98 | 6683 ± 60 |
-| `[16, 2, 512, 512]` | 8705 ± 1644 | 9276 ± 79 |
-| `[16, 3, 512, 512]` | 13522 ± 59 | 13506 ± 62 |
+| Architecture | Clean return | Quant step | Quantized return |
+|---|---|---|---|
+| `[16, 1, 512, 512]` | 6683 ± 98 | 0.02 | 6595 ± 103 |
+| `[16, 2, 512, 512]` | 8705 ± 1644 | 0.1 | 8659 ± 94 |
+| `[16, 3, 512, 512]` | 13522 ± 59 | 0.05 | 12990 ± 159 |
 
 ---
 
@@ -164,18 +164,46 @@ All specs use the same 17-input observation space (VecNormalize-normalized). Inp
 
 ---
 
-## Timing Results (latent dim = 1, quant_step = 0.005)
+## Verification Results
+
+Quant steps chosen as the largest value keeping quantized return within ~5% of clean. Cell count and timing scale as O((range/q)^N) where N is the latent dim.
+
+### latent dim = 1, quant_step = 0.02
 
 ```
   Spec      Result     Stars     Cells   Encoder(s)   Quant(s)   Total(s)
   ────────  ────────  ──────  ────────   ──────────  ─────────  ─────────
-  spec_1    safe         527       132        1.340      0.510      1.850
-  spec_2    safe         413       132        1.131      0.395      1.526
-  spec_3    safe         255      2076        1.113      0.481      1.594
-  spec_4    unsafe       414       132        1.178      0.398      1.576
+  spec_1    safe         334        34        1.219      0.546      1.765
+  spec_2    safe         570        34        1.567      0.049      1.617
+  spec_3    safe         252       520        1.293      0.038      1.331
+  spec_4    unsafe      1061        34        1.538      0.092      1.630
 ```
 
-All four specs complete in **1.5–1.9 seconds**. Encoder nnenum dominates (~70% of runtime); quantization and latent_ctrl evaluation across all cells adds < 0.5s.
+### latent dim = 2, quant_step = 0.1
+
+```
+  Spec      Result     Stars     Cells   Encoder(s)   Quant(s)   Total(s)
+  ────────  ────────  ──────  ────────   ──────────  ─────────  ─────────
+  spec_1    safe          40      1831        0.924      0.479      1.404
+  spec_2    safe         699      2606        1.510      0.213      1.724
+  spec_3    unsafe       622      9286        1.489      0.273      1.762
+  spec_4    unsafe       288      2306        1.331      0.096      1.427
+```
+
+### latent dim = 3, quant_step = 0.05
+
+```
+  Spec      Result     Stars      Cells   Encoder(s)   Quant(s)   Total(s)
+  ────────  ────────  ──────  ---------   ──────────  ─────────  ─────────
+  spec_1    unsafe       120    1843388        1.095     17.543     18.638
+  spec_2    unsafe      1034    1965783        2.509     36.409     38.918
+  spec_3    unsafe       430   17298098        3.613    437.918    441.531  ⚠
+  spec_4    unsafe      1034    1965783        7.357     37.473     44.831
+```
+
+⚠ spec_3 for latent dim 3 generates 17M cells due to the large latent range during pitch-instability states; coarser quantization is needed to make it tractable.
+
+Encoder nnenum dominates for latent dim 1 (~75% of runtime). For higher dims the quantized evaluation becomes the bottleneck as cell count grows cubically.
 
 Running nnenum on the full network (14 layers, 1024 ReLUs in the latent controller alone) exceeds 60s on every spec — in practice 30+ minutes before timing out or erroring. The speedup is structural: the encoder has only 17 ReLU neurons to case-split on, while the latent controller's 1024 ReLUs are bypassed entirely by the quantized lookup.
 
