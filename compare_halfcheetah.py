@@ -33,6 +33,7 @@ from nnenum.enumerate import enumerate_network
 from nnenum.onnx_network import load_onnx_network_optimized
 from nnenum.specification import Specification, DisjunctiveSpec
 from nnenum.vnnlib import read_vnnlib_simple, get_num_inputs_outputs
+from nnenum.lpinstance import LpInstance
 
 
 N_INPUTS  = 17
@@ -47,12 +48,57 @@ def nnenum_config(overapprox=True):
                             else Settings.BRANCH_EXACT)
 
 
-def verify(encoder_onnx, spec_path, latent_ctrl_path, quant_step=0.005, overapprox=True):
+def cell_reachable(cell, enc_stars, star_bounds, n_latent, quant_step):
     """
-    Run encoder nnenum + IQ-Verify bounding-box quantized lookup against spec_path.
+    Check if a quantized cell center is genuinely reachable by any encoder output star
+    via a joint LP feasibility check. Returns True if reachable, False if spurious.
+
+    For each star s that passes a per-dimension bounding box pre-filter, copies s's LP
+    and adds constraints: cell_lo[d] <= output[d] <= cell_hi[d] for all d simultaneously.
+    If the augmented LP is feasible, the cell is confirmed reachable.
+    """
+    half_q = quant_step / 2.0
+    cell_arr = np.array(cell, dtype=float)
+    cell_lo = cell_arr - half_q
+    cell_hi = cell_arr + half_q
+
+    for s, (s_lo, s_hi) in zip(enc_stars, star_bounds):
+        # Per-dimension bounding box pre-filter (cheap)
+        if np.any(s_lo > cell_hi + 1e-9) or np.any(s_hi < cell_lo - 1e-9):
+            continue
+
+        # Degenerate star (single point): just check if the point is in the cell
+        if s.a_mat.size == 0:
+            if np.all(s.bias >= cell_lo - 1e-9) and np.all(s.bias <= cell_hi + 1e-9):
+                return True
+            continue
+
+        # Joint LP feasibility: copy star's LP and add output box constraints
+        lpi = LpInstance(s.lpi)
+        for d in range(n_latent):
+            # output[d] = a_mat[d] @ alpha + bias[d]
+            # upper: a_mat[d] @ alpha <= cell_hi[d] - bias[d]
+            lpi.add_dense_row(s.a_mat[d], cell_hi[d] - s.bias[d])
+            # lower: -a_mat[d] @ alpha <= -(cell_lo[d] - bias[d])
+            lpi.add_dense_row(-s.a_mat[d], -(cell_lo[d] - s.bias[d]))
+
+        if lpi.minimize(None, fail_on_unsat=False) is not None:
+            return True
+
+    return False
+
+
+def verify(encoder_onnx, spec_path, latent_ctrl_path, quant_step=0.005, overapprox=True,
+           complete=False):
+    """
+    Run encoder nnenum + quantized lookup against spec_path.
     Supports any latent dimensionality — auto-detected from encoder ONNX output shape.
 
-    Returns dict with keys: result, t_encoder, t_quant, t_total, n_stars, n_iq_stars,
+    If complete=True, any candidate violations are confirmed via a joint LP feasibility
+    check against the encoder output stars, eliminating false positives from the
+    bounding-box overapproximation. Safe results are always sound regardless.
+
+    Returns dict with keys: result, t_encoder, t_quant, t_total, n_stars,
                              n_cells, n_latent, cells, violations.
     """
     nnenum_config(overapprox)
@@ -82,13 +128,17 @@ def verify(encoder_onnx, spec_path, latent_ctrl_path, quant_step=0.005, overappr
     # one grid. Since all per-star grids share the same lattice, their union
     # equals the grid over [global_min, global_max] — no concatenation or
     # deduplication needed (O(S*D) instead of O(N log N)).
+    # Per-star bounds are also stored for the optional completeness LP filter.
     t1 = time.time()
     global_lo = np.full(n_latent,  np.inf)
     global_hi = np.full(n_latent, -np.inf)
+    star_bounds = []
     for s in enc_stars:
-        for d in range(n_latent):
-            global_lo[d] = min(global_lo[d], s.minimize_output(d, maximize=False))
-            global_hi[d] = max(global_hi[d], s.minimize_output(d, maximize=True))
+        s_lo = np.array([s.minimize_output(d, maximize=False) for d in range(n_latent)])
+        s_hi = np.array([s.minimize_output(d, maximize=True)  for d in range(n_latent)])
+        star_bounds.append((s_lo, s_hi))
+        global_lo = np.minimum(global_lo, s_lo)
+        global_hi = np.maximum(global_hi, s_hi)
 
     if np.any(global_lo == np.inf):
         reachable = np.zeros((0, n_latent))
@@ -123,6 +173,14 @@ def verify(encoder_onnx, spec_path, latent_ctrl_path, quant_step=0.005, overappr
         checker = DisjunctiveSpec([Specification(m, r) for m, r in action_spec_list])
 
     violations = [(c, a) for c, a in cells if checker.is_violation(np.array(a, dtype=float))]
+
+    # ── Step 6 (optional): LP completeness filter ─────────────────────────────
+    # Confirm each candidate violation is genuinely reachable via joint LP check.
+    # Safe results are already sound; only unsafe results may be spurious.
+    if complete and violations:
+        violations = [(c, a) for c, a in violations
+                      if cell_reachable(c, enc_stars, star_bounds, n_latent, quant_step)]
+
     t_quant = time.time() - t1
 
     result = "unsafe" if violations else "safe"
@@ -185,6 +243,8 @@ def main():
                     help="Run robustness specs for all three latent controllers")
     ap.add_argument("--quant_step", type=float, default=0.005)
     ap.add_argument("--overapprox", action="store_true", default=True)
+    ap.add_argument("--complete",   action="store_true", default=False,
+                    help="Filter candidate violations via LP membership check (eliminates false positives)")
     args = ap.parse_args()
 
     encoder_onnx = os.path.join(args.run_dir, "encoder.onnx")
@@ -212,7 +272,8 @@ def main():
                     continue
                 print(f"  Running rob_spec_{base_sid} ...")
                 r = verify(enc, sp, ctrl,
-                           quant_step=args.quant_step, overapprox=args.overapprox)
+                           quant_step=args.quant_step, overapprox=args.overapprox,
+                           complete=args.complete)
                 all_results[(label, base_sid)] = r
 
         # Summary table
@@ -235,7 +296,8 @@ def main():
         spec_path = f"specs/HalfCheetah-v4/spec_{sid}.vnnlib"
         print(f"\nRunning spec_{sid} ...")
         r = verify(encoder_onnx, spec_path, latent_ctrl,
-                   quant_step=args.quant_step, overapprox=args.overapprox)
+                   quant_step=args.quant_step, overapprox=args.overapprox,
+                   complete=args.complete)
         results[sid] = r
         print_result(sid, spec_path, r)
 

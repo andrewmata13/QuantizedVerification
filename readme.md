@@ -170,6 +170,18 @@ Quant steps chosen as the largest value keeping quantized return within ~5% of c
 
 Cell enumeration uses global min/max across all encoder output stars per latent dimension — O(S×D) instead of O(N log N) deduplication. This is a slight overapproximation relative to per-star bounding boxes but eliminates the sorting bottleneck entirely.
 
+### Soundness and completeness
+
+Safe results are always sound: if no cell in the enumerated grid violates the spec, no reachable state can violate it (the grid over-covers the reachable set). Unsafe results from the bounding-box overapproximation may be false positives — a reported violation might fall outside all reachable encoder output star sets.
+
+The `--complete` flag adds a lazy LP membership check for every candidate violation: for each violating cell, the script solves a joint LP against each encoder output star to confirm the cell is genuinely reachable. Only violations that pass this filter are reported.
+
+```bash
+python compare_halfcheetah.py --all --complete
+```
+
+This filter is tractable when the violation count is small. For latent dim 3, where specs 2–4 can produce millions of candidate violations from the global bounding box, the LP filter becomes impractical. In that case, `--complete` is recommended only when the violation count after the grid check is known to be small (e.g., spec_1 latent3: 395 violations confirmed in 11s).
+
 ### latent dim = 1, quant_step = 0.02
 
 ```
@@ -203,7 +215,9 @@ Cell enumeration uses global min/max across all encoder output stars per latent 
   spec_4    unsafe      1034    2345908        7.842      3.550     11.392
 ```
 
-⚠ spec_3 for latent dim 3 generates 18M cells due to the large latent range during pitch-instability states. Down from 441s to 73s after replacing O(N log N) dedup with O(S×D) global min/max; completeness filtering for large grids is a work in progress.
+⚠ spec_3 for latent dim 3 generates 18M cells due to the large latent range during pitch-instability states. Down from 441s to 73s after replacing O(N log N) dedup with O(S×D) global min/max.
+
+spec_1 latent3 with `--complete`: all 395 candidate violations confirmed reachable via LP membership check (10.9s total) — result is complete, not just sound.
 
 Encoder nnenum dominates for latent dim 1 (~75% of runtime). For higher dims the quantized evaluation becomes the bottleneck as cell count grows cubically.
 
@@ -217,13 +231,15 @@ Running nnenum on the full network (14 layers, 1024 ReLUs in the latent controll
 .
 ├── train_custom_sb3.py          # SAC training + model export (Hopper / HalfCheetah)
 ├── train_latent_sweep.py        # HalfCheetah latent dim 2 and 3 training
-├── compare_halfcheetah.py       # HalfCheetah-v4 verification (all specs)
+├── compare_halfcheetah.py       # HalfCheetah-v4 verification (all specs, --complete flag)
 ├── compare_verification.py      # Hopper-v5 verification
 ├── eval_quantized_policy.py     # Clean vs quantized-latent policy performance
-├── generate_halfcheetah_specs.py  # Generate specs from rollout data
+├── generate_halfcheetah_specs.py  # Generate safety specs from rollout data
+├── gen_robustness_specs.py      # Generate local robustness specs (L-inf ball around obs)
+├── gen_trajectory_specs.py      # Generate paired SAT/UNSAT specs from trajectory states
 ├── specs/
 │   ├── Hopper-v5/               # spec_1..4.vnnlib
-│   └── HalfCheetah-v4/          # spec_1..4.vnnlib (obs → action format)
+│   └── HalfCheetah-v4/          # spec_1..4.vnnlib, rob_spec_*.vnnlib, traj_spec_*.vnnlib
 ├── sac_sweep_runs/
 │   ├── HalfCheetah-v4/arch0/seed0/    # latent dim 1
 │   ├── HalfCheetah-v4/latent2/seed0/  # latent dim 2 (after train_latent_sweep.py)
