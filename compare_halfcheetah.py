@@ -175,11 +175,17 @@ def verify(encoder_onnx, spec_path, latent_ctrl_path, quant_step=0.005, overappr
     violations = [(c, a) for c, a in cells if checker.is_violation(np.array(a, dtype=float))]
 
     # ── Step 6 (optional): LP completeness filter ─────────────────────────────
-    # Confirm each candidate violation is genuinely reachable via joint LP check.
+    # Confirm candidate violations are genuinely reachable via joint LP check.
+    # For UNSAFE: short-circuit at the first confirmed violation — we only need
+    # one witness. For SAFE (all candidates rejected): must scan all of them.
     # Safe results are already sound; only unsafe results may be spurious.
     if complete and violations:
-        violations = [(c, a) for c, a in violations
-                      if cell_reachable(c, enc_stars, star_bounds, n_latent, quant_step)]
+        confirmed = []
+        for c, a in violations:
+            if cell_reachable(c, enc_stars, star_bounds, n_latent, quant_step):
+                confirmed.append((c, a))
+                break  # one witness is enough to conclude UNSAFE
+        violations = confirmed
 
     t_quant = time.time() - t1
 
@@ -236,6 +242,8 @@ def main():
     ap.add_argument("--run_dir",    default="sac_sweep_runs/HalfCheetah-v4/arch0/seed0")
     ap.add_argument("--spec_id",    type=int, default=None,
                     help="Single spec to run: 1, 2, 3, or 4.  Omit to run all.")
+    ap.add_argument("--spec_path",  type=str, default=None, nargs="+",
+                    help="One or more explicit spec .vnnlib paths to verify.")
     ap.add_argument("--all",        action="store_true", help="Run safety specs 1-4")
     ap.add_argument("--rob",        action="store_true",
                     help="Run robustness specs (rob_spec_1..4) for this run_dir")
@@ -286,6 +294,16 @@ def main():
         for (label, sid), r in sorted(all_results.items()):
             print(f"  {label:<10}  rob_{sid:<5}  {r['result']:<8}  {r['n_stars']:>6}  "
                   f"{r['n_cells']:>8}  {r['t_total']:>9.3f}")
+        return
+
+    # ── Explicit spec path mode ───────────────────────────────────────────────
+    if args.spec_path:
+        for sp in args.spec_path:
+            print(f"\nRunning {sp} ...")
+            r = verify(encoder_onnx, sp, latent_ctrl,
+                       quant_step=args.quant_step, overapprox=args.overapprox,
+                       complete=args.complete)
+            print_result(os.path.basename(sp), sp, r)
         return
 
     # ── Safety spec mode (original) ───────────────────────────────────────────

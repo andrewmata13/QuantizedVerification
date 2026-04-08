@@ -106,6 +106,7 @@ def train(latent_dim):
         encoder, torch.randn(obs_dim),
         os.path.join(run_dir, "encoder.onnx"),
         input_names=["obs"], output_names=["latent"], opset_version=17,
+        dynamo=False,
     )
     print(f"  Encoder ONNX saved  (obs({obs_dim}) -> latent({latent_dim}))")
 

@@ -136,6 +136,7 @@ def main():
                 input_names=["obs"],
                 output_names=["latent"],
                 opset_version=17,
+        dynamo=False,
             )
             print(f"  Encoder ONNX saved to {onnx_path}")
             print(f"  Encoder architecture: obs({obs_dim}) -> {arch['pi'][:arch['pi'].index(min(arch['pi']))+1]}")

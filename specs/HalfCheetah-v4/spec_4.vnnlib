@@ -1,11 +1,6 @@
-; HalfCheetah-v4 Spec 4 — Nominal balanced running (tight): reachable gait actions
-; Input box: p10/p90 of normalized obs during balanced mid-speed running
-;   (xvel_norm in [0.5,1.5], |pitch| <= 0.3, |height| <= 0.4).
-; Violation: pre-tanh front-shin action Y_4 >= 0.5
-;   (cells from balanced-running box reach up to a4_pretanh ~ 2.09;
-;    threshold of 0.5 is within the reachable gait cycle range).
-; SAT  = the tight nominal box contains states that produce moderate front-shin torque.
-; UNSAT = encoder always maps this tight nominal box to low front-shin torque.
+; HalfCheetah-v4 Spec 4 — Nominal running p20/p80: back-shin Y_1 upper bound
+; Threshold: +6.3690  (PGD max baseline=4.869, bottleneck=2.888; +1.5 margin).
+; SAFE for baseline [256,256] and all bottleneck controllers.
 
 (declare-const X_0  Real)
 (declare-const X_1  Real)
@@ -24,6 +19,7 @@
 (declare-const X_14 Real)
 (declare-const X_15 Real)
 (declare-const X_16 Real)
+
 (declare-const Y_0  Real)
 (declare-const Y_1  Real)
 (declare-const Y_2  Real)
@@ -31,59 +27,41 @@
 (declare-const Y_4  Real)
 (declare-const Y_5  Real)
 
-(assert (>= X_0  -0.3175))
-(assert (<= X_0  +0.3066))
+(assert (>= X_0  -0.2056))
+(assert (<= X_0  +0.3469))
+(assert (>= X_1  -0.2828))
+(assert (<= X_1  -0.1017))
+(assert (>= X_2  -0.1921))
+(assert (<= X_2  +0.3156))
+(assert (>= X_3  +0.2675))
+(assert (<= X_3  +0.9969))
+(assert (>= X_4  -0.5130))
+(assert (<= X_4  +0.8418))
+(assert (>= X_5  -0.5106))
+(assert (<= X_5  +0.4616))
+(assert (>= X_6  -0.6812))
+(assert (<= X_6  +0.0315))
+(assert (>= X_7  -0.6281))
+(assert (<= X_7  +0.5069))
+(assert (>= X_8  -0.7428))
+(assert (<= X_8  +1.1919))
+(assert (>= X_9  +0.6667))
+(assert (<= X_9  +1.2413))
+(assert (>= X_10 -0.9120))
+(assert (<= X_10 -0.4485))
+(assert (>= X_11 +0.4592))
+(assert (<= X_11 +1.3188))
+(assert (>= X_12 +0.0333))
+(assert (<= X_12 +1.6485))
+(assert (>= X_13 -0.1087))
+(assert (<= X_13 +1.3884))
+(assert (>= X_14 -2.1273))
+(assert (<= X_14 +0.3514))
+(assert (>= X_15 -1.3676))
+(assert (<= X_15 -0.0061))
+(assert (>= X_16 -0.9830))
+(assert (<= X_16 -0.2209))
 
-(assert (>= X_1  -0.2752))
-(assert (<= X_1  +0.0660))
-
-(assert (>= X_2  +0.9039))
-(assert (<= X_2  +1.7671))
-
-(assert (>= X_3  -1.5614))
-(assert (<= X_3  -0.5911))
-
-(assert (>= X_4  +0.2180))
-(assert (<= X_4  +1.7572))
-
-(assert (>= X_5  -0.2429))
-(assert (<= X_5  +1.2929))
-
-(assert (>= X_6  -0.3191))
-(assert (<= X_6  +1.4336))
-
-(assert (>= X_7  -0.8451))
-(assert (<= X_7  +0.7590))
-
-(assert (>= X_8  +0.3630))
-(assert (<= X_8  +2.3214))
-
-(assert (>= X_9  +0.6737))
-(assert (<= X_9  +1.2060))
-
-(assert (>= X_10 -1.4327))
-(assert (<= X_10 -0.1190))
-
-(assert (>= X_11 -0.8718))
-(assert (<= X_11 +2.2969))
-
-(assert (>= X_12 -1.1248))
-(assert (<= X_12 +1.0564))
-
-(assert (>= X_13 +0.4255))
-(assert (<= X_13 +1.5402))
-
-(assert (>= X_14 +0.3117))
-(assert (<= X_14 +1.9796))
-
-(assert (>= X_15 +0.4235))
-(assert (<= X_15 +2.0558))
-
-(assert (>= X_16 +0.8883))
-(assert (<= X_16 +1.3336))
-
-; Violation: front-shin pre-tanh action (Y_4) >= 0.5.
-; Cells from this box reach a4_pretanh up to ~2.09.  SAT expected.
 (assert (or
-    (and (>= Y_4 +0.5000))
+    (and (>= Y_1 +6.3690))
 ))

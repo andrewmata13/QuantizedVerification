@@ -222,10 +222,15 @@ def main():
     ap.add_argument("--delta_safe_steps", type=int, default=6,
                     help="Max delta-scaling steps to find a SAFE spec per state")
     ap.add_argument("--seed",          type=int,   default=42)
+    ap.add_argument("--label",         type=str,   default=None,
+                    help="Controller label appended to output filenames, e.g. 'latent2'. "
+                         "Produces traj_spec_{i}_{label}_unsafe.vnnlib. "
+                         "Defaults to the last two path components of run_dir.")
     args = ap.parse_args()
 
     env_id  = args.env
     run_dir = args.run_dir or f"sac_sweep_runs/{env_id}/arch0/seed0"
+    label   = args.label or "_".join(run_dir.rstrip("/").split("/")[-2:])
     meta    = ENV_META[env_id]
     n_obs, n_act = meta["n_obs"], meta["n_act"]
     device  = "cuda" if torch.cuda.is_available() else "cpu"
@@ -235,7 +240,7 @@ def main():
     latent_ctrl_path = os.path.join(run_dir, "latent_controller_full.pth")
     _, n_latent, inp_dtype = get_num_inputs_outputs(encoder_onnx)
 
-    print(f"env={env_id}  run_dir={run_dir}")
+    print(f"env={env_id}  run_dir={run_dir}  label={label}")
     print(f"n_states={args.n_states}  eps={args.eps}  "
           f"quant_step={args.quant_step}  n_latent={n_latent}\n")
 
@@ -278,10 +283,10 @@ def main():
 
         # ── SAT spec ──────────────────────────────────────────────────────────
         delta_sat = max(max_dev - args.delta_margin, 0.01)
-        fname_sat = f"traj_spec_{idx+1}_unsafe.vnnlib"
-        label = f"{env_id} state {idx+1} step {t} eps={args.eps}"
+        fname_sat = f"traj_spec_{idx+1}_{label}_unsafe.vnnlib"
+        spec_label = f"{env_id} {label} state {idx+1} step {t} eps={args.eps}"
         write_vnnlib(os.path.join(out_dir, fname_sat),
-                     obs_lo, obs_hi, a_ref, delta_sat, "unsafe", label, n_obs, n_act, args.eps)
+                     obs_lo, obs_hi, a_ref, delta_sat, "unsafe", spec_label, n_obs, n_act, args.eps)
         print(f"  unsafe: delta={delta_sat:.4f}  →  {fname_sat}")
         written.append((fname_sat, "unsafe", delta_sat))
 
@@ -296,9 +301,9 @@ def main():
             elapsed = time.time() - t0
             print(f"  safe search: delta={delta_safe:.4f}  →  {result}  ({elapsed:.2f}s)")
             if result == "safe":
-                fname_safe = f"traj_spec_{idx+1}_safe.vnnlib"
+                fname_safe = f"traj_spec_{idx+1}_{label}_safe.vnnlib"
                 write_vnnlib(os.path.join(out_dir, fname_safe),
-                             obs_lo, obs_hi, a_ref, delta_safe, "safe", label, n_obs, n_act, args.eps)
+                             obs_lo, obs_hi, a_ref, delta_safe, "safe", spec_label, n_obs, n_act, args.eps)
                 print(f"  safe:   delta={delta_safe:.4f}  →  {fname_safe}  (verified SAFE)")
                 written.append((fname_safe, "safe", delta_safe))
                 found_safe = True
