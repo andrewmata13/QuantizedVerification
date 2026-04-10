@@ -18,6 +18,7 @@ Usage:
     python compare_abcrown.py --env HalfCheetah-v4 --timeout 120
     python compare_abcrown.py --spec_type safety         # safety specs only
     python compare_abcrown.py --spec_type traj           # trajectory specs only
+    python compare_abcrown.py --input_split              # use input splitting
 """
 
 import os, time, argparse
@@ -128,35 +129,75 @@ _SAFE_STATUSES   = {"verified", "safe", "safe-incomplete"}
 # Status strings that mean "violation found" (unsafe/sat)
 _UNSAFE_STATUSES = {"unsafe-pgd", "unsafe-bab", "falsified"}
 
+# Lazily cached — set once on first call to run_abcrown
+_abcrown_imports = {}
 
-def run_abcrown(onnx_path, vnnlib_path, timeout, batch_size=1024):
+
+def _get_abcrown():
+    """Import abcrown API classes, applying device config first."""
+    if not _abcrown_imports:
+        from abcrown import ABCrownSolver, VerificationSpec, ConfigBuilder
+        _abcrown_imports.update(
+            ABCrownSolver=ABCrownSolver,
+            VerificationSpec=VerificationSpec,
+            ConfigBuilder=ConfigBuilder,
+        )
+    return _abcrown_imports
+
+
+def _apply_config_globally(cfg_dict):
+    """Push a config dict into abcrown's global arguments.Config.
+
+    VerificationSpec.build_spec reads arguments.Config['general']['device']
+    during vnnlib parsing, so the config must be applied before building specs.
+    """
+    import arguments
+    from api import _deep_update, _clone_config, _ensure_config_defaults
+    _ensure_config_defaults()
+    new_cfg = _clone_config(arguments.Config.all_args)
+    _deep_update(new_cfg, cfg_dict)
+    arguments.Config.all_args = new_cfg
+    arguments.Config.update_arguments()
+
+
+def run_abcrown(onnx_path, vnnlib_path, timeout, batch_size=1024,
+                input_split=False):
     """Run alpha-beta CROWN via Python API. Returns (result_str, elapsed_seconds)."""
-    from abcrown import ABCrownSolver, VerificationSpec, ConfigBuilder
+    api = _get_abcrown()
+    ABCrownSolver = api["ABCrownSolver"]
+    VerificationSpec = api["VerificationSpec"]
+    ConfigBuilder = api["ConfigBuilder"]
 
-    spec = VerificationSpec.build_spec(vnnlib_path=os.path.abspath(vnnlib_path))
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    cfg = (
+    builder = (
         ConfigBuilder.from_defaults()
         .set(general__device=device)
         .set(solver__batch_size=batch_size)
         .set(bab__timeout=timeout)
         .set(attack__pgd_order="skip")   # skip PGD pre-attack for fair timing
-    )()
+    )
+    if input_split:
+        builder.set(bab__branching__input_split__enable=True)
+    cfg = builder()
 
+    # Apply config globally before building spec (device must be set for vnnlib parsing)
+    _apply_config_globally(cfg)
+
+    spec = VerificationSpec.build_spec(vnnlib_path=os.path.abspath(vnnlib_path))
     solver = ABCrownSolver(spec, os.path.abspath(onnx_path), config=cfg)
     t0 = time.time()
     result = solver.solve()
     elapsed = time.time() - t0
 
-    status = getattr(result, "status", "unknown")
+    status = str(getattr(result, "status", "unknown"))
     if status in _SAFE_STATUSES:
         label = "safe"
     elif status in _UNSAFE_STATUSES:
         label = "unsafe"
-    elif "timeout" in str(status).lower() or "unknown" in str(status).lower():
+    elif "timeout" in status.lower() or "unknown" in status.lower():
         label = "timeout"
     else:
-        label = str(status)
+        label = status
 
     return label, elapsed
 
@@ -174,10 +215,13 @@ def main():
                     help="Solver batch size (reduce if OOM).")
     ap.add_argument("--labels",    nargs="*", default=None,
                     help="Limit to specific controller labels.")
+    ap.add_argument("--input_split", action="store_true",
+                    help="Use input splitting instead of neuron splitting.")
     args = ap.parse_args()
 
     envs = [args.env] if args.env else list(NETWORKS.keys())
 
+    split_tag = " [input-split]" if args.input_split else ""
     all_rows = []
 
     for env in envs:
@@ -196,11 +240,12 @@ def main():
                 print(f"  SKIP {env}/{label} — no specs found")
                 continue
 
-            print(f"\n=== {env} / {label} ===")
+            print(f"\n=== {env} / {label}{split_tag} ===")
             for spec_name, spec_path in specs:
                 print(f"  {spec_name} ... ", end="", flush=True)
                 abc_result, abc_time = run_abcrown(
-                    onnx_path, spec_path, args.timeout, args.batch_size
+                    onnx_path, spec_path, args.timeout, args.batch_size,
+                    input_split=args.input_split,
                 )
                 our = OUR_RESULTS.get((env, label, spec_name))
                 our_result = our[0] if our else "N/A"
@@ -214,7 +259,7 @@ def main():
     # Summary table
     if all_rows:
         print(f"\n{'='*90}")
-        print(f"COMPARISON SUMMARY  (timeout={args.timeout}s)")
+        print(f"COMPARISON SUMMARY  (timeout={args.timeout}s{split_tag})")
         print(f"{'='*90}")
         print(f"  {'Env':<16} {'Controller':<10} {'Spec':<12} "
               f"{'α-β-CROWN':>10} {'Time(s)':>8}  {'Ours':>8} {'OurTime':>8}  {'Speedup':>8}")

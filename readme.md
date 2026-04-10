@@ -25,6 +25,17 @@ pip install .
 cd ../..
 ```
 
+**Alpha-Beta CROWN (optional, for comparison only):**
+```bash
+git clone --recursive https://github.com/Verified-Intelligence/alpha-beta-CROWN.git
+cd alpha-beta-CROWN
+pip install -r complete_verifier/requirements.txt
+cd auto_LiRPA && pip install -e . && cd ..
+pip install -e .
+cd ..
+```
+The `compare_abcrown.py` script imports `abcrown` from the above install. Not needed for the core quantized verification pipeline.
+
 **Note:** nnenum requires single-threaded BLAS. Always run with:
 ```bash
 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python <script>.py
@@ -68,23 +79,40 @@ For N=1: the encoder is 6 nnenum layers (17 ReLU neurons); the full network is 1
 
 ```bash
 # Latent dim 1 (arch [16, 1, 512, 512])
-python train_custom_sb3.py
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python train_sac.py \
+    --env HalfCheetah-v4 --pi 16 1 512 512 --label arch0 --seed 0
 
-# Latent dims 2 and 3
-python train_latent_sweep.py
+# Latent dim 2
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python train_sac.py \
+    --env HalfCheetah-v4 --pi 16 2 512 512 --label latent2 --seed 0
+
+# Latent dim 3
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python train_sac.py \
+    --env HalfCheetah-v4 --pi 16 3 512 512 --label latent3 --seed 0
 
 # Standard [256, 256] baseline (no bottleneck)
-python train_baseline.py --env HalfCheetah-v4
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python train_sac.py \
+    --env HalfCheetah-v4 --pi 256 256 --label baseline --seed 0
 ```
 
 ### Hopper-v5
 
 ```bash
-# Latent dims 3 and 4 (arch [16, N, 512, 512])
-python train_hopper_latent_sweep.py
+# Latent dim 2
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python train_sac.py \
+    --env Hopper-v5 --pi 16 2 512 512 --label latent2 --seed 0
+
+# Latent dim 3
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python train_sac.py \
+    --env Hopper-v5 --pi 16 3 512 512 --label latent3 --seed 0
+
+# Latent dim 4
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python train_sac.py \
+    --env Hopper-v5 --pi 16 4 512 512 --label latent4 --seed 0
 
 # Standard [256, 256] baseline
-python train_baseline.py --env Hopper-v5
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python train_sac.py \
+    --env Hopper-v5 --pi 256 256 --label baseline --seed 0
 ```
 
 Each run saves to `sac_sweep_runs/<env>/<run_name>/seed0/`:
@@ -116,6 +144,43 @@ All training scripts support checkpoint/resume: if `checkpoints/` contains `.zip
 | `[16, 2, 512, 512]` latent2 | 999 ± 120 | dim=2 still struggles |
 | `[16, 3, 512, 512]` latent3 | 3401 ± 3 | recovers well |
 | `[16, 4, 512, 512]` latent4 | — | training in progress |
+
+---
+
+## Latent Space Visualization (HalfCheetah latent2)
+
+The 2D latent space of the latent2 policy can be visualized to understand what behavioral structure the bottleneck learns. Because the latent dimension is only 2, every point (z₁, z₂) maps to a fixed joint torque pattern via the latent controller — the network is forced to organize all of HalfCheetah's locomotion into a 2D manifold.
+
+```bash
+python figures/latent_heatmaps.py --mode both   # action heatmaps + semantic mode map
+python figures/latent_heatmaps.py --mode actions
+python figures/latent_heatmaps.py --mode semantic
+```
+
+Outputs saved to `figures/`.
+
+![Latent space action heatmaps](figures/latent2_action_heatmaps.png)
+
+![Latent space semantic modes](figures/latent2_semantic.png)
+
+### Per-action heatmaps (`latent2_action_heatmaps.png`)
+
+Six subplots, one per pre-tanh action dimension (Y_0–Y_5), colored red (positive) / blue (negative). Shows that back hip (Y_0) and back ankle (Y_2) are almost perfectly correlated (r=0.94) — they form a single "back drive" axis — and are strongly anti-correlated with front knee (Y_4, r=−0.79) and front ankle (Y_5, r=−0.71). The latent space is essentially organized along one main biomechanical axis.
+
+### Semantic mode map (`latent2_semantic.png`)
+
+K-means (k=4) applied to the 6D action vectors across the full latent grid. The four clusters correspond to distinct gait phases that tile the space with clean spatial boundaries:
+
+| Mode | Region | Description |
+|---|---|---|
+| **Peak push** (11%) | Top-left | Back hip and ankle at maximum extension (Y_0≈+2.6, Y_2≈+2.8), back knee maximally coiled (Y_1≈−2.6). The highest-force moment of propulsion. |
+| **Back drive** (40%) | Top | Sustained propulsion phase — back hip and ankle driving (Y_0≈+2.0, Y_2≈+1.9), front hip also positive. The dominant running mode. |
+| **Front reach** (23%) | Bottom-left | Back leg recovering (Y_0≈−1.3, Y_2≈−1.7), front hip and ankle swinging forward (Y_3≈+1.5, Y_5≈+1.0). Prepares the next stride. |
+| **Front landing** (27%) | Bottom-right | Front knee extending to catch the ground (Y_4≈+1.8), back hip and knee fully retracting (Y_0≈−2.0, Y_1≈−1.5). Back leg coils to reload. |
+
+The four phases trace a coherent gait cycle: **Peak push → Back drive → Front landing → Front reach → Peak push**. The action magnitude plot confirms peak push is the highest-force region and the diagonal valley between propulsion and recovery is where torques are smallest.
+
+To overlay rollout trajectories (requires MuJoCo), collect latent coordinates with `figures/collect_latent_traj.py` and pass `--traj_npy figures/latent_traj.npy`.
 
 ---
 
@@ -156,7 +221,8 @@ For N-dimensional latent the quantized grid is N-dimensional; cell count grows a
 **Unsafe results** from the bounding-box overapproximation may be false positives. The `--complete` flag adds a lazy LP membership check: for each candidate violation cell it solves a joint LP against each encoder output star. The check **short-circuits at the first confirmed violation** — only one witness is needed.
 
 ```bash
-python compare_halfcheetah.py --all --complete
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python verify_policy.py \
+    --run_dir sac_sweep_runs/HalfCheetah-v4/latent3/seed0 --all --complete
 ```
 
 ---
@@ -290,9 +356,9 @@ python gen_trajectory_specs.py --env HalfCheetah-v4 \
     --run_dir sac_sweep_runs/HalfCheetah-v4/latent2/seed0 \
     --quant_step 0.1 --label latent2
 
-python compare_halfcheetah.py \
-    --spec_path specs/HalfCheetah-v4/traj_spec_*_latent2_*.vnnlib \
-    --run_dir sac_sweep_runs/HalfCheetah-v4/latent2/seed0 --quant_step 0.1
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python verify_policy.py \
+    --run_dir sac_sweep_runs/HalfCheetah-v4/latent2/seed0 --quant_step 0.1 \
+    --spec_path specs/HalfCheetah-v4/traj_spec_*_latent2_*.vnnlib
 ```
 
 ### Results (HalfCheetah-v4, 5 states × 2 specs × 3 controllers = 30 specs)
@@ -311,17 +377,18 @@ All 30 specs verify correctly. Cell counts stay small because the L-inf obs ball
 
 ```
 .
-├── train_custom_sb3.py              # SAC training for HalfCheetah latent dim 1
-├── train_latent_sweep.py            # HalfCheetah latent dim 2 and 3
-├── train_hopper_latent_sweep.py     # Hopper-v5 latent dim 3 and 4
-├── train_baseline.py                # Standard [256,256] SAC baseline (both envs)
-├── compare_halfcheetah.py           # HalfCheetah verification (--all, --complete)
-├── compare_verification.py          # Hopper-v5 verification
+├── train_sac.py                     # SAC training (bottleneck + baseline, all envs)
+├── verify_policy.py                 # Verification: encoder reachability + quantized lookup
+├── eval_quantized_policy.py         # Evaluate quantized vs clean policy return
 ├── compare_abcrown.py               # alpha-beta CROWN timing comparison
 ├── export_full_onnx.py              # Export full_network.onnx for alpha-beta CROWN
 ├── generate_halfcheetah_specs_v2.py # Generate safety specs (p20/p80, universally safe)
 ├── gen_robustness_specs.py          # L-inf robustness specs around reference states
 ├── gen_trajectory_specs.py          # Paired SAT/UNSAT specs from trajectory states
+├── figures/
+│   ├── latent_heatmaps.py               # Latent space visualization script
+│   ├── latent2_action_heatmaps.png      # Per-action heatmaps over (z₁, z₂)
+│   └── latent2_semantic.png             # Gait phase mode map (k-means, k=4)
 ├── specs/
 │   ├── HalfCheetah-v4/
 │   │   ├── spec_{1..4}.vnnlib          # Main safety specs (p20/p80 nominal running)
