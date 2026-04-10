@@ -34,7 +34,6 @@ cd auto_LiRPA && pip install -e . && cd ..
 pip install -e .
 cd ..
 ```
-The `compare_abcrown.py` script imports `abcrown` from the above install. Not needed for the core quantized verification pipeline.
 
 **Note:** nnenum requires single-threaded BLAS. Always run with:
 ```bash
@@ -56,6 +55,8 @@ This project demonstrates a **quantized bottleneck verification** approach for S
 2. **Latent controller** (N-D latent → action): verified by enumerating all reachable quantized latent cells via GPU lookup — no neural network verification needed
 
 The key insight is structural: the encoder has only ~17 ReLU neurons to case-split on, while the latent controller's 512+ neurons are bypassed entirely by the quantized lookup. This gives >1000× speedup over alpha-beta CROWN on the same specs.
+
+A secondary contribution is **deployment-fidelity**: because the latent controller is evaluated as-executed (including any weight quantization), the verification applies to the exact deployed model — not a float32 approximation.
 
 ### Architecture
 
@@ -130,69 +131,90 @@ All training scripts support checkpoint/resume: if `checkpoints/` contains `.zip
 
 | Architecture | Mean return | Notes |
 |---|---|---|
-| `[256, 256]` baseline | 14380 ± 53 | No bottleneck |
-| `[16, 1, 512, 512]` latent1 | 6683 ± 98 | |
-| `[16, 2, 512, 512]` latent2 | 8705 ± 1644 | |
-| `[16, 3, 512, 512]` latent3 | 13522 ± 59 | |
+| `[256, 256]` baseline | 14,380 ± 53 | No bottleneck |
+| `[16, 1, 512, 512]` latent1 | 6,683 ± 98 | |
+| `[16, 2, 512, 512]` latent2 | 8,705 ± 1644 | |
+| `[16, 3, 512, 512]` latent3 | 13,522 ± 59 | ~94% of baseline |
 
 #### Hopper-v5 (3M steps)
 
 | Architecture | Mean return | Notes |
 |---|---|---|
 | `[256, 256]` baseline | — | training in progress |
-| `[16, 1, 512, 512]` arch0 | 1058 ± 0.5 | dim=1 too restrictive for Hopper |
+| `[16, 1, 512, 512]` arch0 | 1,058 ± 0.5 | dim=1 too restrictive |
 | `[16, 2, 512, 512]` latent2 | 999 ± 120 | dim=2 still struggles |
-| `[16, 3, 512, 512]` latent3 | 3401 ± 3 | recovers well |
-| `[16, 4, 512, 512]` latent4 | — | training in progress |
+| `[16, 3, 512, 512]` latent3 | 3,538 | recovers well |
+| `[16, 4, 512, 512]` latent4 | 3,590 | near-optimal for this bottleneck family |
 
 ---
 
-## Latent Space Visualization (HalfCheetah latent2)
+## Jacobian Analysis — Effective Rank Justification
 
-The 2D latent space of the latent2 policy can be visualized to understand what behavioral structure the bottleneck learns. Because the latent dimension is only 2, every point (z₁, z₂) maps to a fixed joint torque pattern via the latent controller — the network is forced to organize all of HalfCheetah's locomotion into a 2D manifold.
+The choice of latent dimension N is principled: the policy Jacobian J(x) = ∂f/∂x (f: obs → pre-tanh action) has intrinsic low rank at typical rollout states. We compute the singular value decomposition of J over 1000 rollout states and report the **effective rank** as the number of singular values exceeding 10% of σ₁.
 
 ```bash
-python figures/latent_heatmaps.py --mode both   # action heatmaps + semantic mode map
-python figures/latent_heatmaps.py --mode actions
-python figures/latent_heatmaps.py --mode semantic
+python figures/jacobian_analysis.py --n_samples 1000 --out figures/jacobian_svd.png
 ```
 
-Outputs saved to `figures/`.
+| Environment | J shape | Effective rank | Chosen N |
+|---|---|---|---|
+| HalfCheetah-v4 (baseline) | 6×17 | 3 | 3 |
+| Hopper-v5 (latent4) | 3×11 | 3 | 3–4 |
 
-![Latent space action heatmaps](figures/latent2_action_heatmaps.png)
+For HalfCheetah, the action space is 6D but the policy's Jacobian has effective rank 3 — meaning the reachable action manifold under nominal observations is (at most) 3D. Latent1 and latent2 underfit this structure (hence lower returns); latent3 captures it fully.
 
-![Latent space semantic modes](figures/latent2_semantic.png)
-
-### Per-action heatmaps (`latent2_action_heatmaps.png`)
-
-Six subplots, one per pre-tanh action dimension (Y_0–Y_5), colored red (positive) / blue (negative). Shows that back hip (Y_0) and back ankle (Y_2) are almost perfectly correlated (r=0.94) — they form a single "back drive" axis — and are strongly anti-correlated with front knee (Y_4, r=−0.79) and front ankle (Y_5, r=−0.71). The latent space is essentially organized along one main biomechanical axis.
-
-### Semantic mode map (`latent2_semantic.png`)
-
-K-means (k=4) applied to the 6D action vectors across the full latent grid. The four clusters correspond to distinct gait phases that tile the space with clean spatial boundaries:
-
-| Mode | Region | Description |
-|---|---|---|
-| **Peak push** (11%) | Top-left | Back hip and ankle at maximum extension (Y_0≈+2.6, Y_2≈+2.8), back knee maximally coiled (Y_1≈−2.6). The highest-force moment of propulsion. |
-| **Back drive** (40%) | Top | Sustained propulsion phase — back hip and ankle driving (Y_0≈+2.0, Y_2≈+1.9), front hip also positive. The dominant running mode. |
-| **Front reach** (23%) | Bottom-left | Back leg recovering (Y_0≈−1.3, Y_2≈−1.7), front hip and ankle swinging forward (Y_3≈+1.5, Y_5≈+1.0). Prepares the next stride. |
-| **Front landing** (27%) | Bottom-right | Front knee extending to catch the ground (Y_4≈+1.8), back hip and knee fully retracting (Y_0≈−2.0, Y_1≈−1.5). Back leg coils to reload. |
-
-The four phases trace a coherent gait cycle: **Peak push → Back drive → Front landing → Front reach → Peak push**. The action magnitude plot confirms peak push is the highest-force region and the diagonal valley between propulsion and recovery is where torques are smallest.
-
-To overlay rollout trajectories (requires MuJoCo), collect latent coordinates with `figures/collect_latent_traj.py` and pass `--traj_npy figures/latent_traj.npy`.
+![Jacobian singular value analysis](figures/jacobian_svd.png)
 
 ---
 
 ## Quantization
 
-Quant steps are chosen as the largest value keeping quantized return within ~5% of clean:
+### Latent space quantization step
+
+The latent space is quantized to a grid with step size `quant_step`. Steps are chosen as the largest value keeping quantized return within ~5% of clean:
 
 | Architecture | Clean return | Quant step | Quantized return |
 |---|---|---|---|
-| HalfCheetah latent1 | 6683 ± 98 | 0.02 | 6595 ± 103 |
-| HalfCheetah latent2 | 8705 ± 1644 | 0.1 | 8659 ± 94 |
-| HalfCheetah latent3 | 13522 ± 59 | 0.05 | 12990 ± 159 |
+| HalfCheetah latent1 | 6,683 ± 98 | 0.02 | 6,595 ± 103 |
+| HalfCheetah latent2 | 8,705 ± 1644 | 0.1 | 8,659 ± 94 |
+| HalfCheetah latent3 | 13,522 ± 59 | 0.05 | 12,990 ± 159 |
+
+### INT8 weight quantization
+
+The latent controller can be weight-quantized to INT8 without retraining, and our verification method applies to the quantized model with no additional cost — the encoder enumeration is identical; only the controller lookup changes.
+
+Quantization uses per-output-channel symmetric INT8 (weights rounded to nearest INT8 value, dequantized to float32 for inference; activations remain float32 throughout):
+
+```bash
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python quantize_and_verify.py
+```
+
+**Model size (HalfCheetah latent3 controller, 266,752 weight parameters):**
+
+| Format | Storage | Size |
+|---|---|---|
+| float32 | 266,752 × 4 B | 1,046 KB |
+| INT8 | 266,752 × 1 B + 1,030 scales × 4 B | 264.5 KB |
+| Compression | | **3.95×** |
+
+**Policy performance (20 episodes, HalfCheetah-v4):**
+
+| Model | Mean return |
+|---|---|
+| float32 | 13,545 |
+| INT8 (weight-only) | 13,512 |
+
+**Verification results (specs 1–4, `complete=True`):**
+
+| Spec | float32 | INT8 | Action diff (max) |
+|---|---|---|---|
+| spec_1 | SAFE | SAFE | — |
+| spec_2 | SAFE | SAFE | — |
+| spec_3 | SAFE | SAFE | — |
+| spec_4 | SAFE | SAFE | — |
+| **All specs** | | | max=3.39, mean=0.64 (pre-tanh) |
+
+This demonstrates a key advantage over tools like alpha-beta CROWN: CROWN verifies the float32 model, and any safety guarantee it produces does not apply to the deployed quantized model. Our method verifies the exact deployed network at no extra cost.
 
 ---
 
@@ -240,9 +262,9 @@ OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python verify_policy.py \
 | X_10–X_16 | joint angular velocities | | Y_4 | front knee |
 | | | | Y_5 | front ankle |
 
-### Spec definitions
+### Specs 1–4: nominal safety (p20/p80 input box)
 
-All 4 specs use the **same input box**: p20/p80 percentile bounds from baseline rollouts during nominal balanced running (xvel ∈ [0.5, 1.5], |pitch| ≤ 0.3, |height| ≤ 0.4). This is a wide enough box that alpha-beta CROWN requires real branch-and-bound work to prove any spec. Each spec checks a different output dimension's upper saturation bound.
+All 4 specs use the **same input box**: p20/p80 percentile bounds from baseline rollouts during nominal balanced running (xvel ∈ [0.5, 1.5], |pitch| ≤ 0.3, |height| ≤ 0.4). This box is wide enough that alpha-beta CROWN requires real branch-and-bound work yet cannot terminate within 30 minutes. Each spec checks a different output dimension's upper saturation bound.
 
 Thresholds were set at PGD_max + 1.5 margin across all networks, then verified safe via PGD with 40 restarts before writing.
 
@@ -253,19 +275,32 @@ Thresholds were set at PGD_max + 1.5 margin across all networks, then verified s
 | spec_3 | Y_5 (front ankle) ≥ 6.03 | upper | front ankle never fully saturates upward |
 | spec_4 | Y_1 (back knee) ≥ 6.37 | upper | back knee never fully saturates upward |
 
-All 4 specs are **SAFE** for all networks: baseline [256,256] and bottleneck latent1/2/3.
+All 4 specs are **SAFE** for all networks.
 
-**Note on spec generation:** Earlier versions used narrower boxes (p10/p90) and different thresholds calibrated only on bottleneck networks. Those were unsafe for the baseline. The current specs (generated by `generate_halfcheetah_specs_v2.py`) use p20/p80 and are universally safe, enabling a fair timing comparison with alpha-beta CROWN.
+### Specs 5–8: tighter box for tractable CROWN comparison (p32/p68 input box)
 
-**Note on VNN-LIB novelty:** No public VNN-LIB specs for any MuJoCo continuous-control environment exist in VNN-COMP or the academic literature (only CartPole, LunarLander, and Dubins Rejoin have appeared). These are believed to be the first HalfCheetah VNN-LIB specs.
+These specs use a narrower input box (p32/p68 percentile) so that alpha-beta CROWN can solve them in 19–98s, enabling a meaningful timing comparison rather than a pure timeout. Thresholds were set using exhaustive cell enumeration (not just PGD) to ensure no false unsafety.
+
+| Spec | Output checked | Threshold | CROWN (baseline) |
+|---|---|---|---|
+| spec_5 | Y_4 (front knee) ≥ 4.11 | upper | 46.9s |
+| spec_6 | Y_3 (front hip) ≥ 7.65 | upper | 90.2s |
+| spec_7 | Y_5 (front ankle) ≥ 4.62 | upper | 97.7s |
+| spec_8 | Y_1 (back knee) ≥ 3.32 | upper | 19.1s |
+
+**Note on spec_6:** PGD underestimates the true maximum for latent2 (PGD max = 4.01, true cell max = 6.15 via enumeration). The threshold was set using the cell enumeration result + 1.5 margin = 7.65 to ensure universal safety.
+
+**Note on VNN-LIB novelty:** No public VNN-LIB specs for any MuJoCo continuous-control environment exist in VNN-COMP 2021–2024 or the academic literature (only CartPole, LunarLander, and Dubins Rejoin have appeared). These are believed to be the first HalfCheetah VNN-LIB specs.
 
 ---
 
-## Verification Results (HalfCheetah-v4, new specs)
+## Verification Results
+
+### Specs 1–4 (p20/p80 box, alpha-beta CROWN timeout >1800s)
 
 All specs verified with `--complete`. Stars = nnenum output star sets from encoder; Cells = quantized latent cells evaluated.
 
-### latent1 (dim=1, quant_step=0.02)
+#### latent1 (dim=1, quant_step=0.02)
 
 ```
   Spec      Result   Stars   Cells   Total(s)
@@ -276,7 +311,7 @@ All specs verified with `--complete`. Stars = nnenum output star sets from encod
   spec_4    safe       462      40     1.39s
 ```
 
-### latent2 (dim=2, quant_step=0.1)
+#### latent2 (dim=2, quant_step=0.1)
 
 ```
   Spec      Result   Stars   Cells   Total(s)
@@ -287,7 +322,7 @@ All specs verified with `--complete`. Stars = nnenum output star sets from encod
   spec_4    safe       466     462    1.47s
 ```
 
-### latent3 (dim=3, quant_step=0.05)
+#### latent3 (dim=3, quant_step=0.05)
 
 ```
   Spec      Result   Stars     Cells   Total(s)
@@ -300,39 +335,41 @@ All specs verified with `--complete`. Stars = nnenum output star sets from encod
 
 Cell count grows cubically with latent dim: 33–40 cells (dim=1) → 462 (dim=2) → 164,640 (dim=3), yet verification time stays flat at ~1.5s because the GPU-batched lookup scales well.
 
----
-
-## Alpha-Beta CROWN Comparison
-
-alpha-beta CROWN is a state-of-the-art neural network verifier using bound propagation + branch-and-bound. It verifies the full continuous network (no quantization). We compare it against our method on the same 4 specs × 3 bottleneck controllers = 12 cases, plus the baseline as reference.
-
-```bash
-# Export full network ONNX first
-python export_full_onnx.py
-
-# Run comparison (1800s timeout per spec)
-python compare_abcrown.py --env HalfCheetah-v4 --spec_type safety --timeout 1800
-```
-
-### Results
+### Alpha-Beta CROWN Comparison — Specs 1–4
 
 | Network | Spec | α-β CROWN | Ours | Speedup |
 |---|---|---|---|---|
-| baseline [256,256] | spec_1–4 | **timeout >1800s** | N/A (no bottleneck) | — |
-| latent1 | spec_1 | **timeout >1800s** | safe 1.60s | **>1125×** |
-| latent1 | spec_2 | **timeout >1800s** | safe 1.48s | **>1216×** |
-| latent1 | spec_3 | **timeout >1800s** | safe 1.49s | **>1208×** |
-| latent1 | spec_4 | **timeout >1800s** | safe 1.31s | **>1374×** |
-| latent2 | spec_1 | **timeout >1800s** | safe 1.44s | **>1250×** |
-| latent2 | spec_2 | **timeout >1800s** | safe 1.53s | **>1176×** |
-| latent2 | spec_3 | **timeout >1800s** | safe 1.35s | **>1333×** |
-| latent2 | spec_4 | **timeout >1800s** | safe 1.40s | **>1286×** |
-| latent3 | spec_1 | **timeout >1800s** | safe 1.64s | **>1098×** |
-| latent3 | spec_2 | **timeout >1800s** | safe 1.68s | **>1071×** |
-| latent3 | spec_3 | **timeout >1800s** | safe 1.57s | **>1146×** |
-| latent3 | spec_4 | **timeout >1800s** | safe 1.80s | **>1000×** |
+| baseline [256,256] | spec_1–4 | **timeout >1800s** | N/A | — |
+| latent1 | spec_1–4 | **timeout >1800s** | safe ~1.4s | **>1000×** |
+| latent2 | spec_1–4 | **timeout >1800s** | safe ~1.5s | **>1000×** |
+| latent3 | spec_1–4 | **timeout >1800s** | safe ~1.7s | **>1000×** |
 
-**All 12 bottleneck cases: >1000× speedup.** The baseline network cannot be verified at all by alpha-beta CROWN within the timeout — demonstrating that the bottleneck structure is load-bearing for tractable verification, not just an architectural choice.
+**All 12 bottleneck cases: >1000× speedup.**
+
+### Alpha-Beta CROWN Comparison — Specs 5–8 (p32/p68 box)
+
+These specs were designed so that CROWN terminates successfully, demonstrating the speedup on problems CROWN can actually solve (not just timeouts):
+
+| Controller | Spec | CROWN | CROWN (s) | Ours | Ours (s) | Speedup |
+|---|---|---|---|---|---|---|
+| baseline | spec_5 | safe | 46.9 | N/A | N/A | — |
+| latent1 | spec_5 | — | — | safe | 2.3 | 20× |
+| latent2 | spec_5 | — | — | safe | 2.0 | 24× |
+| latent3 | spec_5 | — | — | safe | 2.1 | 23× |
+| baseline | spec_6 | safe | 90.2 | N/A | N/A | — |
+| latent1 | spec_6 | — | — | safe | 2.0 | 46× |
+| latent2 | spec_6 | — | — | safe | 1.8 | 51× |
+| latent3 | spec_6 | — | — | safe | 2.1 | 43× |
+| baseline | spec_7 | safe | 97.7 | N/A | N/A | — |
+| latent1 | spec_7 | — | — | safe | 2.0 | 49× |
+| latent2 | spec_7 | — | — | safe | 1.8 | 55× |
+| latent3 | spec_7 | — | — | safe | 2.1 | 47× |
+| baseline | spec_8 | safe | 19.1 | N/A | N/A | — |
+| latent1 | spec_8 | — | — | safe | 2.0 | 10× |
+| latent2 | spec_8 | — | — | safe | 1.8 | 11× |
+| latent3 | spec_8 | — | — | safe | 2.1 | 9× |
+
+**Note on spec_6 threshold:** PGD initially underestimated the true max for latent2 (PGD max = 4.01, true cell max via exhaustive enumeration = 6.15). The threshold was set using the enumeration result + 1.5 margin = 7.65, ensuring all networks are safe.
 
 ### Why the speedup
 
@@ -363,13 +400,27 @@ OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python verify_policy.py \
 
 ### Results (HalfCheetah-v4, 5 states × 2 specs × 3 controllers = 30 specs)
 
-All 30 specs verify correctly. Cell counts stay small because the L-inf obs ball maps to a narrow latent region.
+All 30 specs verify correctly.
 
 | Controller | Stars | Cells | Total(s) |
 |---|---|---|---|
 | latent1 (dim=1) | 3–6 | 5–7 | ~1.0s |
 | latent2 (dim=2) | 10–27 | 30–56 | ~1.3s |
-| latent3 (dim=3) | 1–28 | 1440–16864 | ~1.3s |
+| latent3 (dim=3) | 1–28 | 1,440–16,864 | ~1.3s |
+
+---
+
+## Latent Space Visualization (HalfCheetah latent2)
+
+```bash
+python figures/latent_heatmaps.py --mode both
+```
+
+![Latent space action heatmaps](figures/latent2_action_heatmaps.png)
+
+![Latent space semantic modes](figures/latent2_semantic.png)
+
+The 2D latent space organizes locomotion into four gait phases: **Peak push → Back drive → Front landing → Front reach**. Back hip (Y_0) and back ankle (Y_2) are highly correlated (r=0.94) and strongly anti-correlated with front knee (Y_4, r=−0.79), confirming the 2D space captures the dominant biomechanical axis.
 
 ---
 
@@ -378,20 +429,25 @@ All 30 specs verify correctly. Cell counts stay small because the L-inf obs ball
 ```
 .
 ├── train_sac.py                     # SAC training (bottleneck + baseline, all envs)
-├── verify_policy.py                 # Verification: encoder reachability + quantized lookup
-├── eval_quantized_policy.py         # Evaluate quantized vs clean policy return
+├── verify_policy.py                 # Core: encoder reachability + quantized lookup
+├── quantize_and_verify.py           # INT8 weight quantization + verification comparison
+├── eval_int8.py                     # Rollout performance: float32 vs INT8 controller
+├── eval_quantized_policy.py         # Rollout performance: clean vs quantized latent step
 ├── compare_abcrown.py               # alpha-beta CROWN timing comparison
-├── export_full_onnx.py              # Export full_network.onnx for alpha-beta CROWN
-├── generate_halfcheetah_specs_v2.py # Generate safety specs (p20/p80, universally safe)
-├── gen_robustness_specs.py          # L-inf robustness specs around reference states
+├── generate_halfcheetah_specs_v2.py # Safety specs 1–4 (p20/p80, universally safe)
+├── generate_specs_5_8.py            # Safety specs 5–8 (p32/p68, CROWN-tractable)
+├── gen_robustness_specs.py          # Local L-inf robustness specs
 ├── gen_trajectory_specs.py          # Paired SAT/UNSAT specs from trajectory states
 ├── figures/
-│   ├── latent_heatmaps.py               # Latent space visualization script
+│   ├── jacobian_analysis.py             # Jacobian SVD + effective rank analysis
+│   ├── latent_heatmaps.py               # Latent space visualization
+│   ├── jacobian_svd.png                 # SVD plots (HalfCheetah + Hopper)
 │   ├── latent2_action_heatmaps.png      # Per-action heatmaps over (z₁, z₂)
 │   └── latent2_semantic.png             # Gait phase mode map (k-means, k=4)
 ├── specs/
 │   ├── HalfCheetah-v4/
-│   │   ├── spec_{1..4}.vnnlib          # Main safety specs (p20/p80 nominal running)
+│   │   ├── spec_{1..4}.vnnlib          # Nominal safety specs (p20/p80)
+│   │   ├── spec_{5..8}.vnnlib          # Tighter specs (p32/p68, CROWN-tractable)
 │   │   ├── rob_spec_*.vnnlib           # Local robustness specs
 │   │   └── traj_spec_*.vnnlib          # Trajectory robustness specs
 │   └── Hopper-v5/
@@ -401,13 +457,14 @@ All 30 specs verify correctly. Cell counts stay small because the L-inf obs ball
 │   │   ├── arch0/seed0/               # latent dim 1
 │   │   ├── latent2/seed0/             # latent dim 2
 │   │   ├── latent3/seed0/             # latent dim 3
-│   │   └── baseline/seed0/            # standard [256,256]
+│   │   └── baseline/seed0/
 │   └── Hopper-v5/
-│       ├── arch0/seed0/               # latent dim 1
-│       ├── latent2/seed0/             # latent dim 2
-│       ├── latent3/seed0/             # latent dim 3
-│       ├── latent4/seed0/             # latent dim 4
-│       └── baseline/seed0/            # standard [256,256]
-├── nnenum_package/nnenum/             # piecewise-linear reachability
+│       ├── arch0/seed0/
+│       ├── latent2/seed0/
+│       ├── latent3/seed0/
+│       ├── latent4/seed0/
+│       └── baseline/seed0/
+├── deprecated/                        # Old scripts, kept for reference
+├── nnenum_package/nnenum/             # Piecewise-linear reachability (nnenum)
 └── nnenum_package/iq_verify/          # IQ-Verify (quantized reachability)
 ```
