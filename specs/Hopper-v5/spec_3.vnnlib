@@ -1,19 +1,9 @@
-; Hopper-v5 Spec 3 – Tight latent separation spec (calibrate after training)
-;
-; This spec checks that for a *small* nominal observation box around a known
-; good trajectory point, the encoder output Y_0 is positive (assuming positive
-; latent values correspond to healthy behavior after calibration).
-;
-; Workflow:
-;   1. Train model with train_custom_sb3.py
-;   2. Run generate_hopper_specs.py to find the median latent value at healthy
-;      states, then update the threshold below.
-;   3. Verify with verify_hopper.py
-;
-; The threshold below (0.0) is a placeholder – update it with the actual
-; value observed from generate_hopper_specs.py after training.
-;
-; Input bounds are in *normalized* observation space.
+; Hopper-v5 — Spec 3 — Foot joint upper saturation bound
+; Input box: p20/p80 of normalized obs during nominal balanced hopping
+;   (xvel_norm in [0.5,1.5], |height_norm| <= 1.5, |pitch_norm| <= 1.0).
+; SAFE for baseline [256,256] and bottleneck controllers latent3/latent4.
+; Violation: pre-tanh foot torque Y_2 >= 13.1322
+;   (sampling max across all networks ~11.6322; threshold adds 1.5 margin).
 
 (declare-const X_0  Real)
 (declare-const X_1  Real)
@@ -27,46 +17,33 @@
 (declare-const X_9  Real)
 (declare-const X_10 Real)
 
-(declare-const Y_0 Real)
+(declare-const Y_0  Real)
+(declare-const Y_1  Real)
+(declare-const Y_2  Real)
 
-; Tight nominal box – a small region around a healthy hopping point
-(assert (>= X_0  0.80))
-(assert (<= X_0  1.20))
+(assert (>= X_0  +0.8526))
+(assert (<= X_0  +1.4073))
+(assert (>= X_1  -0.1500))
+(assert (<= X_1  +0.8102))
+(assert (>= X_2  -0.0526))
+(assert (<= X_2  +0.3462))
+(assert (>= X_3  -0.2141))
+(assert (<= X_3  +0.8312))
+(assert (>= X_4  +0.4043))
+(assert (<= X_4  +1.3870))
+(assert (>= X_5  +0.6818))
+(assert (<= X_5  +0.9805))
+(assert (>= X_6  -0.9997))
+(assert (<= X_6  -0.2954))
+(assert (>= X_7  +0.4342))
+(assert (<= X_7  +1.0357))
+(assert (>= X_8  -0.9918))
+(assert (<= X_8  -0.0006))
+(assert (>= X_9  +0.6656))
+(assert (<= X_9  +1.4238))
+(assert (>= X_10 -0.2452))
+(assert (<= X_10 +1.6619))
 
-(assert (>= X_1 -0.50))
-(assert (<= X_1  0.50))
-
-(assert (>= X_2 -1.00))
-(assert (<= X_2  1.00))
-
-(assert (>= X_3 -1.00))
-(assert (<= X_3  1.00))
-
-(assert (>= X_4 -1.00))
-(assert (<= X_4  1.00))
-
-(assert (>= X_5  0.50))
-(assert (<= X_5  2.00))
-
-(assert (>= X_6 -1.00))
-(assert (<= X_6  1.00))
-
-(assert (>= X_7 -1.00))
-(assert (<= X_7  1.00))
-
-(assert (>= X_8 -1.00))
-(assert (<= X_8  1.00))
-
-(assert (>= X_9 -1.00))
-(assert (<= X_9  1.00))
-
-(assert (>= X_10 -1.00))
-(assert (<= X_10  1.00))
-
-; Output constraint: latent is negative (violation = latent < 0 for a "should be positive" region)
-; UNSAT proves all inputs in this box produce a positive latent (safe assignment).
-; SAT provides a counterexample where the encoder produces a negative latent for a healthy state.
-; UPDATE the threshold after running generate_hopper_specs.py.
 (assert (or
-    (and (<= Y_0 0.00))
+    (and (>= Y_2 +13.1322))
 ))

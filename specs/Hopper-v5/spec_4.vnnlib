@@ -1,14 +1,9 @@
-; Hopper-v5 Spec 4 – Non-negativity proof (always UNSAT)
-;
-; The encoder ends with a ReLU activation: Y_0 = ReLU(linear(...)) ≥ 0.
-; This spec verifies that Y_0 < 0 is UNREACHABLE for ANY input in the given
-; box, providing a formal proof of the encoder's non-negativity property.
-;
-; Expected result: UNSAT (property proved in < 1 second)
-;   → Demonstrates the verification pipeline is sound for this architecture.
-;
-; This spec uses a moderately large input box to show the property holds
-; globally, not just for a specific point.
+; Hopper-v5 — Spec 4 — Any-action upper saturation bound
+; Input box: p20/p80 of normalized obs during nominal balanced hopping
+;   (xvel_norm in [0.5,1.5], |height_norm| <= 1.5, |pitch_norm| <= 1.0).
+; SAFE for baseline [256,256] and bottleneck controllers latent3/latent4.
+; Violation: any pre-tanh action Y_i >= 17.4633
+;   (sampling max across all networks ~15.9633; threshold adds 1.5 margin).
 
 (declare-const X_0  Real)
 (declare-const X_1  Real)
@@ -22,49 +17,35 @@
 (declare-const X_9  Real)
 (declare-const X_10 Real)
 
-(declare-const Y_0 Real)
+(declare-const Y_0  Real)
+(declare-const Y_1  Real)
+(declare-const Y_2  Real)
 
-; Nominal operating range (same box as spec_3 – tight, numerically well-conditioned)
-; The non-negativity property holds globally but this sub-region is chosen
-; to keep the LP well-conditioned for GLPK.
-(assert (>= X_0   0.80))
-(assert (<= X_0   1.20))
+(assert (>= X_0  +0.8526))
+(assert (<= X_0  +1.4073))
+(assert (>= X_1  -0.1500))
+(assert (<= X_1  +0.8102))
+(assert (>= X_2  -0.0526))
+(assert (<= X_2  +0.3462))
+(assert (>= X_3  -0.2141))
+(assert (<= X_3  +0.8312))
+(assert (>= X_4  +0.4043))
+(assert (<= X_4  +1.3870))
+(assert (>= X_5  +0.6818))
+(assert (<= X_5  +0.9805))
+(assert (>= X_6  -0.9997))
+(assert (<= X_6  -0.2954))
+(assert (>= X_7  +0.4342))
+(assert (<= X_7  +1.0357))
+(assert (>= X_8  -0.9918))
+(assert (<= X_8  -0.0006))
+(assert (>= X_9  +0.6656))
+(assert (<= X_9  +1.4238))
+(assert (>= X_10 -0.2452))
+(assert (<= X_10 +1.6619))
 
-(assert (>= X_1  -0.50))
-(assert (<= X_1   0.50))
-
-(assert (>= X_2  -1.00))
-(assert (<= X_2   1.00))
-
-(assert (>= X_3  -1.00))
-(assert (<= X_3   1.00))
-
-(assert (>= X_4  -1.00))
-(assert (<= X_4   1.00))
-
-(assert (>= X_5   0.50))
-(assert (<= X_5   2.00))
-
-(assert (>= X_6  -1.00))
-(assert (<= X_6   1.00))
-
-(assert (>= X_7  -1.00))
-(assert (<= X_7   1.00))
-
-(assert (>= X_8  -1.00))
-(assert (<= X_8   1.00))
-
-(assert (>= X_9  -1.00))
-(assert (<= X_9   1.00))
-
-(assert (>= X_10 -1.00))
-(assert (<= X_10  1.00))
-
-; Output violation: Y_0 is strictly negative (less than -0.01)
-; This is UNSAT because the encoder's output layer is ReLU,
-; making Y_0 = ReLU(...) ≥ 0 by construction.
-; Note: Y_0 = 0 is reachable (when the pre-ReLU is ≤ 0), so we use -0.01 as
-; the threshold to prove strict non-negativity is impossible below that level.
 (assert (or
-    (and (<= Y_0 -0.01))
+    (and (>= Y_0 +17.4633))
+    (and (>= Y_1 +17.4633))
+    (and (>= Y_2 +17.4633))
 ))

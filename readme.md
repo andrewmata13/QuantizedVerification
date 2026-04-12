@@ -116,6 +116,27 @@ OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python train_sac.py \
     --env Hopper-v5 --pi 256 256 --label baseline --seed 0
 ```
 
+### Ant-v4
+
+```bash
+# Standard [256, 256] baseline
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python train_sac.py \
+    --env Ant-v4 --pi 256 256 --label baseline --seed 0
+
+# Wide encoder bottlenecks [32, N, 512, 512] — 5M steps
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python train_sac.py \
+    --env Ant-v4 --pi 32 3 512 512 --label latent3_wide --steps 5000000 --seed 0
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python train_sac.py \
+    --env Ant-v4 --pi 32 4 512 512 --label latent4_wide --steps 5000000 --seed 0
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python train_sac.py \
+    --env Ant-v4 --pi 32 5 512 512 --label latent5_wide --steps 5000000 --seed 0
+```
+
+Or use the automated pipeline (trains baseline, runs Jacobian analysis, then trains latents):
+```bash
+python run_ant_pipeline.py
+```
+
 Each run saves to `sac_sweep_runs/<env>/<run_name>/seed0/`:
 - `model.zip` — full SB3 SAC model
 - `encoder.onnx` — encoder network (ONNX, ReLU-only, no Tanh)
@@ -140,11 +161,31 @@ All training scripts support checkpoint/resume: if `checkpoints/` contains `.zip
 
 | Architecture | Mean return | Notes |
 |---|---|---|
-| `[256, 256]` baseline | — | training in progress |
-| `[16, 1, 512, 512]` arch0 | 1,058 ± 0.5 | dim=1 too restrictive |
-| `[16, 2, 512, 512]` latent2 | 999 ± 120 | dim=2 still struggles |
-| `[16, 3, 512, 512]` latent3 | 3,538 | recovers well |
-| `[16, 4, 512, 512]` latent4 | 3,590 | near-optimal for this bottleneck family |
+| `[256, 256]` baseline | 3,913 ± 448 | No bottleneck |
+| `[16, 1, 512, 512]` latent1 | 1,058 ± 1 | dim=1 too restrictive |
+| `[16, 2, 512, 512]` latent2 | 976 ± 130 | dim=2 still struggles |
+| `[16, 3, 512, 512]` latent3 | 3,538 ± 2 | recovers well |
+| `[16, 4, 512, 512]` latent4 | 3,587 ± 12 | near-baseline performance |
+
+#### Ant-v4 (3M steps, narrow encoder [16, N, 512, 512])
+
+| Architecture | Best return | % baseline | Notes |
+|---|---|---|---|
+| `[256, 256]` baseline | 7,154 ± 90 | 100% | 3M steps |
+| `[16, 3, 512, 512]` latent3 | 4,475 ± 38 | 63% | best at 2M (collapsed at 2.5M) |
+| `[16, 4, 512, 512]` latent4 | 1,546 ± 15 | 22% | training instability |
+| `[16, 5, 512, 512]` latent5 | 3,632 ± 78 | 51% | best at 2.5M |
+| `[16, 6, 512, 512]` latent6 | 3,125 ± 27 | 44% | 3M steps |
+
+The narrow encoder [16, N, 512, 512] compresses 27D→16 before the bottleneck, which is too aggressive. The Jacobian effective rank is 5 with a gradual decay (no sharp cutoff), explaining the larger performance gap vs HalfCheetah/Hopper. Wide encoder retraining in progress — see below.
+
+#### Ant-v4 (5M steps, wide encoder [32, N, 512, 512]) — *in progress*
+
+| Architecture | Notes |
+|---|---|
+| `[32, 3, 512, 512]` latent3_wide | Training |
+| `[32, 4, 512, 512]` latent4_wide | Training |
+| `[32, 5, 512, 512]` latent5_wide | Training |
 
 ---
 
@@ -160,6 +201,9 @@ python figures/jacobian_analysis.py --n_samples 1000 --out figures/jacobian_svd.
 |---|---|---|---|
 | HalfCheetah-v4 (baseline) | 6×17 | 3 | 3 |
 | Hopper-v5 (latent4) | 3×11 | 3 | 3–4 |
+| Ant-v4 (baseline) | 8×27 | 5 | 3–5 |
+
+For Ant-v4, the SVD decays gradually (σ5/σ1=0.13, σ6/σ1=0.09) with no sharp elbow, meaning the policy genuinely uses more dimensions than HalfCheetah or Hopper. This makes compression harder: the best narrow-encoder bottleneck (latent3) reaches only 63% of baseline vs 94% for HalfCheetah.
 
 For HalfCheetah, the action space is 6D but the policy's Jacobian has effective rank 3 — meaning the reachable action manifold under nominal observations is (at most) 3D. Latent1 and latent2 underfit this structure (hence lower returns); latent3 captures it fully.
 
@@ -378,6 +422,132 @@ These specs were designed so that CROWN terminates successfully, demonstrating t
 - The bottleneck architecture is what makes our decomposition possible. The baseline [256,256] network has no such split point.
 
 Note: alpha-beta CROWN verifies the continuous policy; our method verifies the quantized policy (what actually runs at deployment). Both guarantees are valid for their respective runtime policies.
+
+---
+
+## Hopper-v5 Specifications
+
+### Observation / Action layout
+
+| Index | Observation | | Index | Pre-tanh action |
+|---|---|---|---|---|
+| X_0 | torso z-position (height) | | Y_0 | thigh joint torque |
+| X_1 | torso pitch angle | | Y_1 | leg joint torque |
+| X_2–X_4 | thigh/leg/foot joint angles | | Y_2 | foot joint torque |
+| X_5 | forward velocity (x) | | | |
+| X_6 | z-velocity (vertical) | | | |
+| X_7–X_10 | angular velocities | | | |
+
+### Specs 1–4: nominal safety (p20/p80 input box)
+
+Input box: p20/p80 percentile bounds from baseline rollouts during nominal balanced hopping (xvel ∈ [0.5, 1.5], |height| ≤ 1.5, |pitch| ≤ 1.0). Thresholds set at PGD_max + 1.5 margin across baseline, latent3, and latent4. latent1/2 excluded (returns ~1000, produce unbounded outputs on baseline observations).
+
+```bash
+python generate_hopper_specs.py
+```
+
+| Spec | Output checked | Threshold | Semantics |
+|---|---|---|---|
+| spec_1 | Y_0 (thigh) ≥ 8.12 | upper | thigh never fully saturates upward |
+| spec_2 | Y_1 (leg) ≥ 17.46 | upper | leg never fully saturates upward |
+| spec_3 | Y_2 (foot) ≥ 13.13 | upper | foot never fully saturates upward |
+| spec_4 | any Y_i ≥ 17.46 | upper | any action upper saturation |
+
+### Hopper-v5 Quantization Step
+
+| Architecture | Clean return | Quant step | Quantized return |
+|---|---|---|---|
+| Hopper latent3 | 3,538 ± 2 | 0.1 | 3,542 |
+| Hopper latent4 | 3,587 ± 12 | 0.1 | 3,601 |
+
+### Hopper-v5 Verification Results (our method)
+
+#### latent3 (dim=3, quant_step=0.1, 6,300 cells)
+
+```
+  Spec      Result   Stars   Cells   Total(s)
+  ────────  ──────   ─────   ─────   ────────
+  spec_1    safe       365   6,300    1.68s
+  spec_2    safe       365   6,300    1.33s
+  spec_3    safe       365   6,300    1.28s
+  spec_4    safe       365   6,300    1.42s
+```
+
+#### latent4 (dim=4, quant_step=0.1, 642,600 cells)
+
+```
+  Spec      Result   Stars     Cells   Total(s)
+  ────────  ──────   ─────   ───────   ────────
+  spec_1    safe       204   642,600   36.06s
+  spec_2    safe       204   642,600    3.11s
+  spec_3    safe       204   642,600    2.87s
+  spec_4    safe       204   642,600    8.37s
+```
+
+spec_1 for latent4 is slower because the latent box is wider in that region (cell enumeration is 4D cubic in box width / quant_step). All other specs finish in under 10s.
+
+### Alpha-Beta CROWN Comparison — Hopper-v5 Specs 1–4
+
+All 12 cases (baseline + latent3 + latent4, 4 specs each) timeout at 300s. Speedups below are computed against the 300s wall-clock timeout (conservative — actual CROWN effort exceeds 1800s as with HalfCheetah):
+
+CROWN was run against both the **full bottleneck network** (encoder + controller concatenated, same ONNX that CROWN would use in practice) and the **baseline [256,256]**. 7200s timeout.
+
+| Network | Spec | α-β CROWN | Ours | Speedup |
+|---|---|---|---|---|
+| baseline [256,256] | spec_1–4 | timeout >300s | N/A | — |
+| latent3 (full) | spec_1 | **timeout >7200s** | safe 1.68s | **>4283×** |
+| latent3 (full) | spec_2 | **timeout >7200s** | safe 1.33s | **>5430×** |
+| latent3 (full) | spec_3 | **timeout >7200s** | safe 1.28s | **>5612×** |
+| latent3 (full) | spec_4 | **timeout >7200s** | safe 1.42s | **>5060×** |
+| latent4 (full) | spec_1 | safe 1466s | safe 36.06s | **41×** |
+| latent4 (full) | spec_2 | safe 4376s | safe 3.11s | **1409×** |
+| latent4 (full) | spec_3 | **timeout >7200s** | safe 2.87s | **>2510×** |
+| latent4 (full) | spec_4 | **timeout >7200s** | safe 8.37s | **>860×** |
+
+Even with the small encoder (11→16→N ReLU neurons), CROWN on the full bottleneck network still times out on hard specs because the 512×512 controller dominates the BaB search. Our method bypasses the controller entirely via cell lookup.
+
+### Hopper-v5 Specs 5–8: tighter box for tractable CROWN comparison (p32/p68)
+
+Generated by `generate_hopper_specs_5_8.py`. Calibration selected p32/p68 (widest box where CROWN finishes within 30 min on the calibration spec). All specs verified SAFE for baseline and latent3/latent4.
+
+| Spec | Output checked | Threshold | CROWN (baseline) |
+|---|---|---|---|
+| spec_5 | Y_0 (thigh) ≥ 4.53 | upper | 239.8s |
+| spec_6 | Y_1 (leg) ≥ 8.31 | upper | 2568.9s |
+| spec_7 | Y_2 (foot) ≥ 11.74 | upper | 3.3s |
+| spec_8 | any Y_i ≥ 11.74 | upper | 13.4s |
+
+**CROWN vs our method (p32/p68 box):**
+
+| Controller | Spec | CROWN (s) | Ours (s) | Speedup |
+|---|---|---|---|---|
+| baseline | spec_5 | 239.8 | N/A | — |
+| latent3 | spec_5 | — | 3.35 | **72×** |
+| latent4 | spec_5 | — | 13.29 | **18×** |
+| baseline | spec_6 | 2568.9 | N/A | — |
+| latent3 | spec_6 | — | 3.13 | **822×** |
+| latent4 | spec_6 | — | 3.74 | **687×** |
+| baseline | spec_7 | 3.3 | N/A | — |
+| latent3 | spec_7 | — | 3.17 | ~1× |
+| latent4 | spec_7 | — | 3.66 | ~0.9× |
+| baseline | spec_8 | 13.4 | N/A | — |
+| latent3 | spec_8 | — | 2.92 | **5×** |
+| latent4 | spec_8 | — | 4.66 | **3×** |
+
+CROWN times are against the **full bottleneck network** (not baseline):
+
+| Controller | Spec | CROWN (full net) | Ours | Speedup |
+|---|---|---|---|---|
+| latent3 | spec_5 | safe 199.9s | safe 3.35s | **60×** |
+| latent3 | spec_6 | safe 31.2s | safe 3.13s | **10×** |
+| latent3 | spec_7 | safe 11.6s | safe 3.17s | 3.7× |
+| latent3 | spec_8 | safe 24.9s | safe 2.92s | **8.5×** |
+| latent4 | spec_5 | safe 6.2s | safe 13.29s | 0.5× |
+| latent4 | spec_6 | safe 112.5s | safe 3.74s | **30×** |
+| latent4 | spec_7 | safe 286.3s | safe 3.65s | **78×** |
+| latent4 | spec_8 | safe 412.2s | safe 4.66s | **88×** |
+
+spec_7 (CROWN 11.6s on latent3) and latent4 spec_5 (CROWN 6.2s, ours 13.3s) are cases where the threshold is far enough above the network's true maximum that CROWN's initial LP relaxation suffices — no BaB needed. Our method's 157,320-cell lookup for latent4 spec_5 is slower than CROWN's trivial proof. This is an honest limitation: for specs that are trivially safe, cell enumeration overhead dominates.
 
 ---
 

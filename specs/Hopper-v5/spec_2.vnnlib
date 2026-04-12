@@ -1,19 +1,9 @@
-; Hopper-v5 Spec 2 – Near-failure (large tilt) state reachability
-;
-; Property: for states where the torso angle is large (near the ±0.2 rad
-; failure boundary, which maps to roughly ±2 in normalized space), the
-; 1-D encoder bottleneck output Y_0 is in a DIFFERENT range than the
-; nominal hopping region.
-;
-; This spec is used together with spec_1 to show that the encoder's 1-D
-; latent *separates* healthy and near-failure observations, making the
-; quantized latent space semantically meaningful for safety verification.
-;
-; If the verified nominal range from spec_1 is [lo, hi] and the encoder
-; output for near-failure states is verifiably OUTSIDE [lo, hi], the
-; separation is formally proved.
-;
-; Input bounds are in *normalized* observation space.
+; Hopper-v5 — Spec 2 — Leg joint upper saturation bound
+; Input box: p20/p80 of normalized obs during nominal balanced hopping
+;   (xvel_norm in [0.5,1.5], |height_norm| <= 1.5, |pitch_norm| <= 1.0).
+; SAFE for baseline [256,256] and bottleneck controllers latent3/latent4.
+; Violation: pre-tanh leg torque Y_1 >= 17.4632
+;   (sampling max across all networks ~15.9632; threshold adds 1.5 margin).
 
 (declare-const X_0  Real)
 (declare-const X_1  Real)
@@ -27,52 +17,33 @@
 (declare-const X_9  Real)
 (declare-const X_10 Real)
 
-(declare-const Y_0 Real)
+(declare-const Y_0  Real)
+(declare-const Y_1  Real)
+(declare-const Y_2  Real)
 
-; Input constraints – near-failure region (large torso tilt)
-; Height: could still be above failure threshold but angle is large
-(assert (>= X_0 -0.50))
-(assert (<= X_0  1.50))
+(assert (>= X_0  +0.8526))
+(assert (<= X_0  +1.4073))
+(assert (>= X_1  -0.1500))
+(assert (<= X_1  +0.8102))
+(assert (>= X_2  -0.0526))
+(assert (<= X_2  +0.3462))
+(assert (>= X_3  -0.2141))
+(assert (<= X_3  +0.8312))
+(assert (>= X_4  +0.4043))
+(assert (<= X_4  +1.3870))
+(assert (>= X_5  +0.6818))
+(assert (<= X_5  +0.9805))
+(assert (>= X_6  -0.9997))
+(assert (<= X_6  -0.2954))
+(assert (>= X_7  +0.4342))
+(assert (<= X_7  +1.0357))
+(assert (>= X_8  -0.9918))
+(assert (<= X_8  -0.0006))
+(assert (>= X_9  +0.6656))
+(assert (<= X_9  +1.4238))
+(assert (>= X_10 -0.2452))
+(assert (<= X_10 +1.6619))
 
-; Torso angle: near failure boundary (normalized |X_1| ≈ 2.0)
-(assert (>= X_1  1.50))
-(assert (<= X_1  3.00))
-
-; Joint angles: unconstrained in moderate range
-(assert (>= X_2 -3.00))
-(assert (<= X_2  3.00))
-
-(assert (>= X_3 -3.00))
-(assert (<= X_3  3.00))
-
-(assert (>= X_4 -3.00))
-(assert (<= X_4  3.00))
-
-; Forward velocity: slowing down as hopper falls
-(assert (>= X_5 -1.00))
-(assert (<= X_5  2.00))
-
-; Other velocities: larger variance during falling
-(assert (>= X_6 -3.00))
-(assert (<= X_6  3.00))
-
-(assert (>= X_7 -3.00))
-(assert (<= X_7  3.00))
-
-(assert (>= X_8 -3.00))
-(assert (<= X_8  3.00))
-
-(assert (>= X_9 -3.00))
-(assert (<= X_9  3.00))
-
-(assert (>= X_10 -3.00))
-(assert (<= X_10  3.00))
-
-; Output constraint: check if the latent is outside [-5, 5] for near-failure inputs.
-; Combined with spec_1 (UNSAT → nominal stays inside [-5, 5]), a SAT result here
-; would provide a concrete near-failure state that drives the encoder out of the
-; nominal latent region – demonstrating latent-space separation.
 (assert (or
-    (and (>= Y_0  5.00))
-    (and (<= Y_0 -5.00))
+    (and (>= Y_1 +17.4632))
 ))

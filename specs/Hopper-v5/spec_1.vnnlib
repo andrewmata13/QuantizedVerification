@@ -1,25 +1,9 @@
-; Hopper-v5 Spec 1 – Nominal hopping state reachability
-;
-; Observations (normalized by VecNormalize, indices match Hopper-v5):
-;   X_0  : torso z-position (height)         – healthy raw > 0.7
-;   X_1  : torso y-rotation (angle)          – healthy raw |angle| < 0.2
-;   X_2  : thigh joint angle
-;   X_3  : leg joint angle
-;   X_4  : foot joint angle
-;   X_5  : torso x-velocity (forward)
-;   X_6  : torso z-velocity
-;   X_7  : torso angular velocity
-;   X_8  : thigh angular velocity
-;   X_9  : leg angular velocity
-;   X_10 : foot angular velocity
-;
-; Property: for a clearly healthy hopping state (good height, small tilt,
-; positive forward velocity) the 1-D encoder bottleneck output Y_0 is bounded.
-; This verifies that the encoder correctly maps the nominal operating region
-; to a compact latent interval, enabling tractable quantized reachability.
-;
-; Input bounds are in *normalized* observation space (VecNormalize running stats).
-; Typical normalized values for well-visited healthy states lie in [-3, 3].
+; Hopper-v5 — Spec 1 — Thigh joint upper saturation bound
+; Input box: p20/p80 of normalized obs during nominal balanced hopping
+;   (xvel_norm in [0.5,1.5], |height_norm| <= 1.5, |pitch_norm| <= 1.0).
+; SAFE for baseline [256,256] and bottleneck controllers latent3/latent4.
+; Violation: pre-tanh thigh torque Y_0 >= 8.1190
+;   (sampling max across all networks ~6.6190; threshold adds 1.5 margin).
 
 (declare-const X_0  Real)
 (declare-const X_1  Real)
@@ -33,51 +17,33 @@
 (declare-const X_9  Real)
 (declare-const X_10 Real)
 
-(declare-const Y_0 Real)
+(declare-const Y_0  Real)
+(declare-const Y_1  Real)
+(declare-const Y_2  Real)
 
-; Input constraints – nominal hopping region (normalized)
-; Height: clearly above failure threshold
-(assert (>= X_0  0.50))
-(assert (<= X_0  2.00))
+(assert (>= X_0  +0.8526))
+(assert (<= X_0  +1.4073))
+(assert (>= X_1  -0.1500))
+(assert (<= X_1  +0.8102))
+(assert (>= X_2  -0.0526))
+(assert (<= X_2  +0.3462))
+(assert (>= X_3  -0.2141))
+(assert (<= X_3  +0.8312))
+(assert (>= X_4  +0.4043))
+(assert (<= X_4  +1.3870))
+(assert (>= X_5  +0.6818))
+(assert (<= X_5  +0.9805))
+(assert (>= X_6  -0.9997))
+(assert (<= X_6  -0.2954))
+(assert (>= X_7  +0.4342))
+(assert (<= X_7  +1.0357))
+(assert (>= X_8  -0.9918))
+(assert (<= X_8  -0.0006))
+(assert (>= X_9  +0.6656))
+(assert (<= X_9  +1.4238))
+(assert (>= X_10 -0.2452))
+(assert (<= X_10 +1.6619))
 
-; Torso angle: upright (small tilt)
-(assert (>= X_1 -1.00))
-(assert (<= X_1  1.00))
-
-; Joint angles: moderate range
-(assert (>= X_2 -2.00))
-(assert (<= X_2  2.00))
-
-(assert (>= X_3 -2.00))
-(assert (<= X_3  2.00))
-
-(assert (>= X_4 -2.00))
-(assert (<= X_4  2.00))
-
-; Forward velocity: positive (hopper moving forward)
-(assert (>= X_5  0.00))
-(assert (<= X_5  3.00))
-
-; Remaining velocities: moderate
-(assert (>= X_6 -2.00))
-(assert (<= X_6  2.00))
-
-(assert (>= X_7 -2.00))
-(assert (<= X_7  2.00))
-
-(assert (>= X_8 -2.00))
-(assert (<= X_8  2.00))
-
-(assert (>= X_9 -2.00))
-(assert (<= X_9  2.00))
-
-(assert (>= X_10 -2.00))
-(assert (<= X_10  2.00))
-
-; Output constraint: encoder latent is bounded in [-5, 5]
-; A SAT result means there exists a nominal input that escapes this range (bad).
-; An UNSAT result proves the encoder maps the entire nominal region inside [-5, 5].
 (assert (or
-    (and (>= Y_0  5.00))
-    (and (<= Y_0 -5.00))
+    (and (>= Y_0 +8.1190))
 ))

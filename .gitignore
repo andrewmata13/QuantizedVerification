@@ -2,3 +2,5 @@ __pycache__/
 controllers/
 env_data/
 videos/
+*.compiled
+*_int8.pth

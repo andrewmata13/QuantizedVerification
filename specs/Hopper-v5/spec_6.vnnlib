@@ -1,0 +1,47 @@
+; Hopper-v5 — Spec 6 — Y_1 (leg) upper bound
+; Input box: p32/p68 nominal hopping (tighter than specs 1-4 p20/p80)
+; Violation: Y_1 >= +8.3138
+; SAFE for baseline [256,256] and latent3/latent4.
+
+(declare-const X_0  Real)
+(declare-const X_1  Real)
+(declare-const X_2  Real)
+(declare-const X_3  Real)
+(declare-const X_4  Real)
+(declare-const X_5  Real)
+(declare-const X_6  Real)
+(declare-const X_7  Real)
+(declare-const X_8  Real)
+(declare-const X_9  Real)
+(declare-const X_10 Real)
+
+(declare-const Y_0  Real)
+(declare-const Y_1  Real)
+(declare-const Y_2  Real)
+
+(assert (>= X_0  +1.0264))
+(assert (<= X_0  +1.3413))
+(assert (>= X_1  +0.1162))
+(assert (<= X_1  +0.6777))
+(assert (>= X_2  +0.0220))
+(assert (<= X_2  +0.2476))
+(assert (>= X_3  +0.1475))
+(assert (<= X_3  +0.6762))
+(assert (>= X_4  +0.7530))
+(assert (<= X_4  +1.3514))
+(assert (>= X_5  +0.7374))
+(assert (<= X_5  +0.9319))
+(assert (>= X_6  -0.9001))
+(assert (<= X_6  -0.5673))
+(assert (>= X_7  +0.5655))
+(assert (<= X_7  +0.8957))
+(assert (>= X_8  -0.7172))
+(assert (<= X_8  -0.1209))
+(assert (>= X_9  +0.8075))
+(assert (<= X_9  +1.2645))
+(assert (>= X_10 -0.1095))
+(assert (<= X_10 +1.4575))
+
+(assert (or
+    (and (>= Y_1 +8.3138))
+))

@@ -59,21 +59,15 @@ NETWORKS = {
             "is_baseline": True,
         },
         {
-            "label":   "latent2",
-            "run_dir": "sac_sweep_runs/Hopper-v5/latent2/seed0",
-            "quant_step": None,   # fill after training
-            "is_baseline": False,
-        },
-        {
             "label":   "latent3",
             "run_dir": "sac_sweep_runs/Hopper-v5/latent3/seed0",
-            "quant_step": None,
+            "quant_step": 0.1,
             "is_baseline": False,
         },
         {
             "label":   "latent4",
             "run_dir": "sac_sweep_runs/Hopper-v5/latent4/seed0",
-            "quant_step": None,
+            "quant_step": 0.1,
             "is_baseline": False,
         },
     ],
@@ -95,6 +89,26 @@ OUR_RESULTS = {
     ("HalfCheetah-v4", "latent3", "spec_2"): ("safe", 1.680),
     ("HalfCheetah-v4", "latent3", "spec_3"): ("safe", 1.570),
     ("HalfCheetah-v4", "latent3", "spec_4"): ("safe", 1.800),
+    # Hopper-v5 latent3 (quant_step=0.1, 6,300 cells)
+    ("Hopper-v5", "latent3", "spec_1"): ("safe", 1.681),
+    ("Hopper-v5", "latent3", "spec_2"): ("safe", 1.326),
+    ("Hopper-v5", "latent3", "spec_3"): ("safe", 1.283),
+    ("Hopper-v5", "latent3", "spec_4"): ("safe", 1.423),
+    # Hopper-v5 latent4 (quant_step=0.1, 642,600 cells)
+    ("Hopper-v5", "latent4", "spec_1"): ("safe", 36.061),
+    ("Hopper-v5", "latent4", "spec_2"): ("safe", 3.106),
+    ("Hopper-v5", "latent4", "spec_3"): ("safe", 2.869),
+    ("Hopper-v5", "latent4", "spec_4"): ("safe", 8.369),
+    # Hopper-v5 specs 5-8 (p32/p68) — latent3 (1,400 cells)
+    ("Hopper-v5", "latent3", "spec_5"): ("safe", 3.350),
+    ("Hopper-v5", "latent3", "spec_6"): ("safe", 3.127),
+    ("Hopper-v5", "latent3", "spec_7"): ("safe", 3.168),
+    ("Hopper-v5", "latent3", "spec_8"): ("safe", 2.915),
+    # Hopper-v5 specs 5-8 (p32/p68) — latent4 (157,320 cells)
+    ("Hopper-v5", "latent4", "spec_5"): ("safe", 13.288),
+    ("Hopper-v5", "latent4", "spec_6"): ("safe", 3.741),
+    ("Hopper-v5", "latent4", "spec_7"): ("safe", 3.655),
+    ("Hopper-v5", "latent4", "spec_8"): ("safe", 4.657),
 }
 
 
@@ -107,7 +121,7 @@ def find_specs(env, spec_type, label):
 
     specs = []
     if spec_type in ("safety", "all"):
-        for i in range(1, 5):
+        for i in range(1, 9):
             p = os.path.join(spec_dir, f"spec_{i}.vnnlib")
             if os.path.exists(p):
                 specs.append((f"spec_{i}", p))
