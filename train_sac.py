@@ -32,12 +32,14 @@ triggers the encoder/latent split. Standard arches like [256, 256] are treated a
 import os, time, argparse
 os.environ["MUJOCO_GL"] = "egl"
 
+import numpy as np
 import torch
 import torch.nn as nn
 import gymnasium as gym
-from stable_baselines3 import SAC
+from stable_baselines3 import SAC, TD3
 from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.evaluation import evaluate_policy
+from stable_baselines3.common.noise import NormalActionNoise
 from stable_baselines3.common.vec_env import DummyVecEnv, VecMonitor, VecNormalize
 
 BOTTLENECK_THRESHOLD = 32   # pi dims <= this trigger encoder/latent split
@@ -114,7 +116,7 @@ def export_onnx(net, obs_dim, path, output_name="output"):
 
 # ── Main training function ─────────────────────────────────────────────────────
 
-def train(env_id, pi_arch, qf_arch, label, seed, total_steps, eval_episodes):
+def train(env_id, pi_arch, qf_arch, label, seed, total_steps, eval_episodes, algo="sac", ent_coef="auto"):
     arch     = {"pi": pi_arch, "qf": qf_arch}
     run_dir  = os.path.join(OUT_DIR, env_id, label, f"seed{seed}")
     ckpt_dir = os.path.join(run_dir, "checkpoints")
@@ -138,16 +140,31 @@ def train(env_id, pi_arch, qf_arch, label, seed, total_steps, eval_episodes):
     )
 
     # ── Resume or fresh start ─────────────────────────────────────────────────
+    AlgoCls = TD3 if algo == "td3" else SAC
     ckpt_path, steps_done = find_latest_checkpoint(ckpt_dir)
     if ckpt_path:
         print(f"  Resuming from {ckpt_path} ({steps_done:,} steps done)")
-        model = SAC.load(ckpt_path, env=train_env, device="auto")
+        model = AlgoCls.load(ckpt_path, env=train_env, device="auto")
+    elif algo == "td3":
+        n_actions = train_env.action_space.shape[0]
+        action_noise = NormalActionNoise(
+            mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions)
+        )
+        model = TD3(
+            "MlpPolicy", train_env,
+            policy_kwargs=dict(net_arch=arch, activation_fn=nn.ReLU),
+            learning_rate=3e-4, batch_size=256, tau=0.005, gamma=0.99,
+            train_freq=(1, "episode"), gradient_steps=-1,
+            action_noise=action_noise,
+            seed=seed, device="auto", verbose=1,
+        )
     else:
         model = SAC(
             "MlpPolicy", train_env,
             policy_kwargs=dict(net_arch=arch, activation_fn=nn.ReLU),
             learning_rate=3e-4, batch_size=256, tau=0.005, gamma=0.99,
-            train_freq=(1, "step"), gradient_steps=1, target_entropy="auto",
+            train_freq=(1, "step"), gradient_steps=1,
+            ent_coef=ent_coef, target_entropy="auto",
             seed=seed, device="auto", verbose=1,
         )
 
@@ -185,16 +202,29 @@ def train(env_id, pi_arch, qf_arch, label, seed, total_steps, eval_episodes):
     print(f"  Eval ({eval_episodes} eps): mean={mean_r:.1f} ± {std_r:.1f}")
 
     # ── Export full network ONNX ──────────────────────────────────────────────
-    obs_dim  = train_env.observation_space.shape[0]
-    full_net = nn.Sequential(model.actor.latent_pi, model.actor.mu).cpu().eval()
-    n_act    = export_onnx(full_net, obs_dim,
-                           os.path.join(run_dir, "full_network.onnx"),
-                           output_name="pre_tanh_action")
+    obs_dim = train_env.observation_space.shape[0]
+    # TD3: actor.mu = [..., Tanh]; SAC: actor.latent_pi + actor.mu (no Tanh)
+    if algo == "td3":
+        all_layers = list(model.actor.mu.cpu().children())
+        # Strip final Tanh so ONNX outputs pre-tanh action (required by nnenum/CROWN)
+        pre_tanh_layers = [l for l in all_layers if not isinstance(l, nn.Tanh)]
+        full_net = nn.Sequential(*pre_tanh_layers).eval()
+    else:
+        full_net = nn.Sequential(model.actor.latent_pi, model.actor.mu).cpu().eval()
+    n_act = export_onnx(full_net, obs_dim,
+                        os.path.join(run_dir, "full_network.onnx"),
+                        output_name="pre_tanh_action")
     print(f"  full_network.onnx  obs({obs_dim}) -> action({n_act})")
 
     # ── Bottleneck split + encoder ONNX ──────────────────────────────────────
     if is_bottleneck:
-        encoder, latent_ctrl = split_actor(model, bottleneck_dim)
+        if algo == "td3":
+            # For TD3, split full_net (all layers excl. Tanh) at the bottleneck
+            layers = list(full_net.children())
+            encoder = nn.Sequential(*layers[:4]).cpu().eval()
+            latent_ctrl = nn.Sequential(*layers[4:]).cpu().eval()
+        else:
+            encoder, latent_ctrl = split_actor(model, bottleneck_dim)
         torch.save(encoder,     os.path.join(run_dir, "encoder_full.pth"))
         torch.save(latent_ctrl, os.path.join(run_dir, "latent_controller_full.pth"))
         export_onnx(encoder, obs_dim,
@@ -227,12 +257,23 @@ def main():
     ap.add_argument("--qf",     type=int, nargs="+", default=[256, 256],
                     help="Critic network hidden layer sizes (default: 256 256)")
     ap.add_argument("--eval_episodes", type=int, default=20)
+    ap.add_argument("--algo", type=str, default="sac", choices=["sac", "td3"],
+                    help="RL algorithm: sac (default) or td3")
+    ap.add_argument("--ent_coef", type=str, default="auto",
+                    help="SAC entropy coef: 'auto' (default) or a float e.g. 0.1")
     args = ap.parse_args()
+
+    # Convert ent_coef to float if numeric
+    try:
+        args.ent_coef = float(args.ent_coef)
+    except ValueError:
+        pass  # keep as "auto"
 
     # Auto-derive label from arch if not given
     if args.label is None:
         bn_dim = min(args.pi)
-        args.label = f"latent{bn_dim}" if bn_dim <= BOTTLENECK_THRESHOLD else "baseline"
+        base   = f"latent{bn_dim}" if bn_dim <= BOTTLENECK_THRESHOLD else "baseline"
+        args.label = f"{base}_{args.algo}" if args.algo != "sac" else base
         print(f"  (label auto-set to '{args.label}')")
 
     mean_r, std_r = train(
@@ -243,6 +284,8 @@ def main():
         seed          = args.seed,
         total_steps   = args.total_steps,
         eval_episodes = args.eval_episodes,
+        algo          = args.algo,
+        ent_coef      = args.ent_coef,
     )
 
     print(f"\n{'='*65}")

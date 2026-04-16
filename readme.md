@@ -116,26 +116,6 @@ OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python train_sac.py \
     --env Hopper-v5 --pi 256 256 --label baseline --seed 0
 ```
 
-### Ant-v4
-
-```bash
-# Standard [256, 256] baseline
-OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python train_sac.py \
-    --env Ant-v4 --pi 256 256 --label baseline --seed 0
-
-# Wide encoder bottlenecks [32, N, 512, 512] — 5M steps
-OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python train_sac.py \
-    --env Ant-v4 --pi 32 3 512 512 --label latent3_wide --steps 5000000 --seed 0
-OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python train_sac.py \
-    --env Ant-v4 --pi 32 4 512 512 --label latent4_wide --steps 5000000 --seed 0
-OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python train_sac.py \
-    --env Ant-v4 --pi 32 5 512 512 --label latent5_wide --steps 5000000 --seed 0
-```
-
-Or use the automated pipeline (trains baseline, runs Jacobian analysis, then trains latents):
-```bash
-python run_ant_pipeline.py
-```
 
 Each run saves to `sac_sweep_runs/<env>/<run_name>/seed0/`:
 - `model.zip` — full SB3 SAC model
@@ -167,26 +147,6 @@ All training scripts support checkpoint/resume: if `checkpoints/` contains `.zip
 | `[16, 3, 512, 512]` latent3 | 3,538 ± 2 | recovers well |
 | `[16, 4, 512, 512]` latent4 | 3,587 ± 12 | near-baseline performance |
 
-#### Ant-v4 (3M steps, narrow encoder [16, N, 512, 512])
-
-| Architecture | Best return | % baseline | Notes |
-|---|---|---|---|
-| `[256, 256]` baseline | 7,154 ± 90 | 100% | 3M steps |
-| `[16, 3, 512, 512]` latent3 | 4,475 ± 38 | 63% | best at 2M (collapsed at 2.5M) |
-| `[16, 4, 512, 512]` latent4 | 1,546 ± 15 | 22% | training instability |
-| `[16, 5, 512, 512]` latent5 | 3,632 ± 78 | 51% | best at 2.5M |
-| `[16, 6, 512, 512]` latent6 | 3,125 ± 27 | 44% | 3M steps |
-
-The narrow encoder [16, N, 512, 512] compresses 27D→16 before the bottleneck, which is too aggressive. The Jacobian effective rank is 5 with a gradual decay (no sharp cutoff), explaining the larger performance gap vs HalfCheetah/Hopper. Wide encoder retraining in progress — see below.
-
-#### Ant-v4 (5M steps, wide encoder [32, N, 512, 512]) — *in progress*
-
-| Architecture | Notes |
-|---|---|
-| `[32, 3, 512, 512]` latent3_wide | Training |
-| `[32, 4, 512, 512]` latent4_wide | Training |
-| `[32, 5, 512, 512]` latent5_wide | Training |
-
 ---
 
 ## Jacobian Analysis — Effective Rank Justification
@@ -201,9 +161,6 @@ python figures/jacobian_analysis.py --n_samples 1000 --out figures/jacobian_svd.
 |---|---|---|---|
 | HalfCheetah-v4 (baseline) | 6×17 | 3 | 3 |
 | Hopper-v5 (latent4) | 3×11 | 3 | 3–4 |
-| Ant-v4 (baseline) | 8×27 | 5 | 3–5 |
-
-For Ant-v4, the SVD decays gradually (σ5/σ1=0.13, σ6/σ1=0.09) with no sharp elbow, meaning the policy genuinely uses more dimensions than HalfCheetah or Hopper. This makes compression harder: the best narrow-encoder bottleneck (latent3) reaches only 63% of baseline vs 94% for HalfCheetah.
 
 For HalfCheetah, the action space is 6D but the policy's Jacobian has effective rank 3 — meaning the reachable action manifold under nominal observations is (at most) 3D. Latent1 and latent2 underfit this structure (hence lower returns); latent3 captures it fully.
 
