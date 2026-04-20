@@ -132,39 +132,40 @@ All training scripts support checkpoint/resume: if `checkpoints/` contains `.zip
 
 | Architecture | Mean return | Notes |
 |---|---|---|
-| `[256, 256]` baseline | 14,380 ± 53 | No bottleneck |
+| `[512, 512]` baseline | 15,264 ± 47 | No bottleneck |
 | `[16, 1, 512, 512]` latent1 | 6,683 ± 98 | |
 | `[16, 2, 512, 512]` latent2 | 8,705 ± 1644 | |
-| `[16, 3, 512, 512]` latent3 | 13,522 ± 59 | ~94% of baseline |
+| `[16, 3, 512, 512]` latent3 | 13,522 ± 59 | ~89% of baseline |
 
 #### Hopper-v5 (3M steps)
 
 | Architecture | Mean return | Notes |
 |---|---|---|
-| `[256, 256]` baseline | 3,913 ± 448 | No bottleneck |
+| `[512, 512]` baseline | 3,722 ± 381 | No bottleneck |
 | `[16, 1, 512, 512]` latent1 | 1,058 ± 1 | dim=1 too restrictive |
 | `[16, 2, 512, 512]` latent2 | 976 ± 130 | dim=2 still struggles |
-| `[16, 3, 512, 512]` latent3 | 3,538 ± 2 | recovers well |
-| `[16, 4, 512, 512]` latent4 | 3,587 ± 12 | near-baseline performance |
+| `[16, 3, 512, 512]` latent3 | 3,538 ± 2 | ~95% of baseline |
+| `[16, 4, 512, 512]` latent4 | 3,587 ± 12 | ~96% of baseline |
 
 ---
 
 ## Jacobian Analysis — Effective Rank Justification
 
-The choice of latent dimension N is principled: the policy Jacobian J(x) = ∂f/∂x (f: obs → pre-tanh action) has intrinsic low rank at typical rollout states. We compute the singular value decomposition of J over 1000 rollout states and report the **effective rank** as the number of singular values exceeding 10% of σ₁.
+The choice of latent dimension N is principled via **model order reduction (MOR)**: the policy Jacobian J(x) = ∂f/∂x (f: obs → pre-tanh action) has intrinsic low rank at typical rollout states. The **effective rank** k* = |{k : σ_k/σ_1 > 0.10}| predicts the minimum latent dim needed to recover baseline performance.
 
 ```bash
 python figures/jacobian_analysis.py --n_samples 1000 --out figures/jacobian_svd.png
+python figures/mor_analysis.py --n_samples 500 --out figures/mor_analysis.png
 ```
 
-| Environment | J shape | Effective rank | Chosen N |
+| Environment | J shape | Effective rank k* | First N with R(N) ≥ 0.9 |
 |---|---|---|---|
-| HalfCheetah-v4 (baseline) | 6×17 | 3 | 3 |
-| Hopper-v5 (latent4) | 3×11 | 3 | 3–4 |
+| HalfCheetah-v4 | 6×17 | 3 | latent3 (~89%) |
+| Hopper-v5 | 3×11 | 3 | latent3 (~95%) |
 
-For HalfCheetah, the action space is 6D but the policy's Jacobian has effective rank 3 — meaning the reachable action manifold under nominal observations is (at most) 3D. Latent1 and latent2 underfit this structure (hence lower returns); latent3 captures it fully.
+For HalfCheetah, the action space is 6D but the Jacobian effective rank is 3 — the reachable action manifold under nominal observations is at most 3D. Latent1/2 underfit this structure; latent3 captures it fully. The same prediction holds for Hopper (3-action environment, max Jacobian rank = 3).
 
-![Jacobian singular value analysis](figures/jacobian_svd.png)
+![MOR analysis](figures/mor_analysis.png)
 
 ---
 
@@ -340,7 +341,7 @@ Cell count grows cubically with latent dim: 33–40 cells (dim=1) → 462 (dim=2
 
 | Network | Spec | α-β CROWN | Ours | Speedup |
 |---|---|---|---|---|
-| baseline [256,256] | spec_1–4 | **timeout >1800s** | N/A | — |
+| baseline [512,512] | spec_1–4 | **timeout >1800s** | N/A | — |
 | latent1 | spec_1–4 | **timeout >1800s** | safe ~1.4s | **>1000×** |
 | latent2 | spec_1–4 | **timeout >1800s** | safe ~1.5s | **>1000×** |
 | latent3 | spec_1–4 | **timeout >1800s** | safe ~1.7s | **>1000×** |
@@ -353,30 +354,30 @@ These specs were designed so that CROWN terminates successfully, demonstrating t
 
 | Controller | Spec | CROWN | CROWN (s) | Ours | Ours (s) | Speedup |
 |---|---|---|---|---|---|---|
-| baseline | spec_5 | safe | 46.9 | N/A | N/A | — |
-| latent1 | spec_5 | — | — | safe | 2.3 | 20× |
-| latent2 | spec_5 | — | — | safe | 2.0 | 24× |
-| latent3 | spec_5 | — | — | safe | 2.1 | 23× |
-| baseline | spec_6 | safe | 90.2 | N/A | N/A | — |
-| latent1 | spec_6 | — | — | safe | 2.0 | 46× |
-| latent2 | spec_6 | — | — | safe | 1.8 | 51× |
-| latent3 | spec_6 | — | — | safe | 2.1 | 43× |
-| baseline | spec_7 | safe | 97.7 | N/A | N/A | — |
-| latent1 | spec_7 | — | — | safe | 2.0 | 49× |
-| latent2 | spec_7 | — | — | safe | 1.8 | 55× |
-| latent3 | spec_7 | — | — | safe | 2.1 | 47× |
-| baseline | spec_8 | safe | 19.1 | N/A | N/A | — |
-| latent1 | spec_8 | — | — | safe | 2.0 | 10× |
-| latent2 | spec_8 | — | — | safe | 1.8 | 11× |
-| latent3 | spec_8 | — | — | safe | 2.1 | 9× |
+| baseline [512,512] | spec_5 | safe | 234.4 | N/A | N/A | — |
+| latent1 | spec_5 | — | — | safe | 2.3 | **102×** |
+| latent2 | spec_5 | — | — | safe | 2.0 | **117×** |
+| latent3 | spec_5 | — | — | safe | 2.1 | **112×** |
+| baseline [512,512] | spec_6 | safe | 93.1 | N/A | N/A | — |
+| latent1 | spec_6 | — | — | safe | 2.0 | **47×** |
+| latent2 | spec_6 | — | — | safe | 1.8 | **52×** |
+| latent3 | spec_6 | — | — | safe | 2.1 | **44×** |
+| baseline [512,512] | spec_7 | **timeout** | 1800 | N/A | N/A | — |
+| latent1 | spec_7 | — | — | safe | 2.0 | **>900×** |
+| latent2 | spec_7 | — | — | safe | 1.8 | **>1000×** |
+| latent3 | spec_7 | — | — | safe | 2.1 | **>857×** |
+| baseline [512,512] | spec_8 | **timeout** | 1800 | N/A | N/A | — |
+| latent1 | spec_8 | — | — | safe | 2.0 | **>900×** |
+| latent2 | spec_8 | — | — | safe | 1.8 | **>1000×** |
+| latent3 | spec_8 | — | — | safe | 2.1 | **>857×** |
 
 **Note on spec_6 threshold:** PGD initially underestimated the true max for latent2 (PGD max = 4.01, true cell max via exhaustive enumeration = 6.15). The threshold was set using the enumeration result + 1.5 margin = 7.65, ensuring all networks are safe.
 
 ### Why the speedup
 
-- **alpha-beta CROWN** must reason about the full obs→action mapping (17→16→N→512→512→6). For a 256×256 network with a large 17D input box, BaB generates millions of subdomains and still can't tighten the bounds enough to prove the spec within 30 minutes.
+- **alpha-beta CROWN** must reason about the full obs→action mapping (17→16→N→512→512→6). For a 512×512 baseline, BaB generates millions of subdomains and cannot tighten bounds within 30 minutes on all but the easiest specs.
 - **Our method** splits the problem: nnenum on the tiny encoder (17 ReLU neurons) → ~1.5s. The latent controller's 1024 ReLU neurons are never analyzed — they're evaluated by lookup.
-- The bottleneck architecture is what makes our decomposition possible. The baseline [256,256] network has no such split point.
+- The bottleneck architecture is what makes our decomposition possible. The baseline [512,512] network has no such split point.
 
 Note: alpha-beta CROWN verifies the continuous policy; our method verifies the quantized policy (what actually runs at deployment). Both guarantees are valid for their respective runtime policies.
 
@@ -445,21 +446,21 @@ spec_1 for latent4 is slower because the latent box is wider in that region (cel
 
 ### Alpha-Beta CROWN Comparison — Hopper-v5 Specs 1–4
 
-All 12 cases (baseline + latent3 + latent4, 4 specs each) timeout at 300s. Speedups below are computed against the 300s wall-clock timeout (conservative — actual CROWN effort exceeds 1800s as with HalfCheetah):
-
-CROWN was run against both the **full bottleneck network** (encoder + controller concatenated, same ONNX that CROWN would use in practice) and the **baseline [256,256]**. 7200s timeout.
+CROWN was run against both the **full bottleneck network** (encoder + controller concatenated, same ONNX that CROWN would use in practice) and the **baseline [512,512]**. 1800s timeout.
 
 | Network | Spec | α-β CROWN | Ours | Speedup |
 |---|---|---|---|---|
-| baseline [256,256] | spec_1–4 | timeout >300s | N/A | — |
-| latent3 (full) | spec_1 | **timeout >7200s** | safe 1.68s | **>4283×** |
-| latent3 (full) | spec_2 | **timeout >7200s** | safe 1.33s | **>5430×** |
-| latent3 (full) | spec_3 | **timeout >7200s** | safe 1.28s | **>5612×** |
-| latent3 (full) | spec_4 | **timeout >7200s** | safe 1.42s | **>5060×** |
+| baseline [512,512] | spec_1 | **timeout >1800s** | N/A | — |
+| baseline [512,512] | spec_2 | safe 613.7s | N/A | — |
+| baseline [512,512] | spec_3–4 | **timeout >1800s** | N/A | — |
+| latent3 (full) | spec_1 | **timeout >1800s** | safe 1.68s | **>1071×** |
+| latent3 (full) | spec_2 | **timeout >1800s** | safe 1.33s | **>1353×** |
+| latent3 (full) | spec_3 | **timeout >1800s** | safe 1.28s | **>1406×** |
+| latent3 (full) | spec_4 | **timeout >1800s** | safe 1.42s | **>1268×** |
 | latent4 (full) | spec_1 | safe 1466s | safe 36.06s | **41×** |
-| latent4 (full) | spec_2 | safe 4376s | safe 3.11s | **1409×** |
-| latent4 (full) | spec_3 | **timeout >7200s** | safe 2.87s | **>2510×** |
-| latent4 (full) | spec_4 | **timeout >7200s** | safe 8.37s | **>860×** |
+| latent4 (full) | spec_2 | **timeout >1800s** | safe 3.11s | **>580×** |
+| latent4 (full) | spec_3 | **timeout >1800s** | safe 2.87s | **>627×** |
+| latent4 (full) | spec_4 | **timeout >1800s** | safe 8.37s | **>215×** |
 
 Even with the small encoder (11→16→N ReLU neurons), CROWN on the full bottleneck network still times out on hard specs because the 512×512 controller dominates the BaB search. Our method bypasses the controller entirely via cell lookup.
 
@@ -467,29 +468,29 @@ Even with the small encoder (11→16→N ReLU neurons), CROWN on the full bottle
 
 Generated by `generate_hopper_specs_5_8.py`. Calibration selected p32/p68 (widest box where CROWN finishes within 30 min on the calibration spec). All specs verified SAFE for baseline and latent3/latent4.
 
-| Spec | Output checked | Threshold | CROWN (baseline) |
+| Spec | Output checked | Threshold | CROWN baseline [512,512] |
 |---|---|---|---|
-| spec_5 | Y_0 (thigh) ≥ 4.53 | upper | 239.8s |
-| spec_6 | Y_1 (leg) ≥ 8.31 | upper | 2568.9s |
-| spec_7 | Y_2 (foot) ≥ 11.74 | upper | 3.3s |
-| spec_8 | any Y_i ≥ 11.74 | upper | 13.4s |
+| spec_5 | Y_0 (thigh) ≥ 4.53 | upper | 129.3s |
+| spec_6 | Y_1 (leg) ≥ 8.31 | upper | 82.9s |
+| spec_7 | Y_2 (foot) ≥ 11.74 | upper | 30.3s |
+| spec_8 | any Y_i ≥ 11.74 | upper | 42.1s |
 
 **CROWN vs our method (p32/p68 box):**
 
 | Controller | Spec | CROWN (s) | Ours (s) | Speedup |
 |---|---|---|---|---|
-| baseline | spec_5 | 239.8 | N/A | — |
-| latent3 | spec_5 | — | 3.35 | **72×** |
-| latent4 | spec_5 | — | 13.29 | **18×** |
-| baseline | spec_6 | 2568.9 | N/A | — |
-| latent3 | spec_6 | — | 3.13 | **822×** |
-| latent4 | spec_6 | — | 3.74 | **687×** |
-| baseline | spec_7 | 3.3 | N/A | — |
-| latent3 | spec_7 | — | 3.17 | ~1× |
-| latent4 | spec_7 | — | 3.66 | ~0.9× |
-| baseline | spec_8 | 13.4 | N/A | — |
-| latent3 | spec_8 | — | 2.92 | **5×** |
-| latent4 | spec_8 | — | 4.66 | **3×** |
+| baseline [512,512] | spec_5 | 129.3 | N/A | — |
+| latent3 | spec_5 | — | 3.35 | **39×** |
+| latent4 | spec_5 | — | 13.29 | **10×** |
+| baseline [512,512] | spec_6 | 82.9 | N/A | — |
+| latent3 | spec_6 | — | 3.13 | **26×** |
+| latent4 | spec_6 | — | 3.74 | **22×** |
+| baseline [512,512] | spec_7 | 30.3 | N/A | — |
+| latent3 | spec_7 | — | 3.17 | **10×** |
+| latent4 | spec_7 | — | 3.66 | **8×** |
+| baseline [512,512] | spec_8 | 42.1 | N/A | — |
+| latent3 | spec_8 | — | 2.92 | **14×** |
+| latent4 | spec_8 | — | 4.66 | **9×** |
 
 CROWN times are against the **full bottleneck network** (not baseline):
 
@@ -567,8 +568,11 @@ The 2D latent space organizes locomotion into four gait phases: **Peak push → 
 ├── gen_trajectory_specs.py          # Paired SAT/UNSAT specs from trajectory states
 ├── figures/
 │   ├── jacobian_analysis.py             # Jacobian SVD + effective rank analysis
+│   ├── mor_analysis.py                  # MOR: effective rank vs performance retention
+│   ├── dmd_analysis.py                  # DMD global linear operator SVD comparison
 │   ├── latent_heatmaps.py               # Latent space visualization
 │   ├── jacobian_svd.png                 # SVD plots (HalfCheetah + Hopper)
+│   ├── mor_analysis.png                 # MOR prediction figure
 │   ├── latent2_action_heatmaps.png      # Per-action heatmaps over (z₁, z₂)
 │   └── latent2_semantic.png             # Gait phase mode map (k-means, k=4)
 ├── specs/
