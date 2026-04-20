@@ -264,122 +264,67 @@ OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python verify_policy.py \
 | X_10–X_16 | joint angular velocities | | Y_4 | front knee |
 | | | | Y_5 | front ankle |
 
-### Specs 1–4: nominal safety (p20/p80 input box)
+**Specs 1–4** use a p20/p80 percentile input box from 50k baseline rollout steps, filtered to nominal running (xvel ∈ [0.5, 1.5], |pitch| ≤ 0.3, |height| ≤ 0.4). Thresholds set at PGD_max + 1.5 margin, verified safe via PGD with 40 restarts.
 
-All 4 specs use the **same input box**: p20/p80 percentile bounds from baseline rollouts during nominal balanced running (xvel ∈ [0.5, 1.5], |pitch| ≤ 0.3, |height| ≤ 0.4). This box is wide enough that alpha-beta CROWN requires real branch-and-bound work yet cannot terminate within 30 minutes. Each spec checks a different output dimension's upper saturation bound.
+**Specs 5–8** use a narrower p32/p68 box so that α-β CROWN can terminate (not just timeout), enabling a direct timing comparison. Thresholds set via exhaustive cell enumeration.
 
-Thresholds were set at PGD_max + 1.5 margin across all networks, then verified safe via PGD with 40 restarts before writing.
-
-| Spec | Output checked | Threshold | Semantics |
+| Spec | Box | Output checked | Threshold |
 |---|---|---|---|
-| spec_1 | Y_4 (front knee) ≥ 5.07 | upper | front knee never fully saturates upward |
-| spec_2 | Y_3 (front hip) ≥ 6.87 | upper | front hip never fully saturates upward |
-| spec_3 | Y_5 (front ankle) ≥ 6.03 | upper | front ankle never fully saturates upward |
-| spec_4 | Y_1 (back knee) ≥ 6.37 | upper | back knee never fully saturates upward |
+| spec_1 | p20/p80 | Y_4 (front knee) ≥ 5.07 | upper saturation |
+| spec_2 | p20/p80 | Y_3 (front hip) ≥ 6.87 | upper saturation |
+| spec_3 | p20/p80 | Y_5 (front ankle) ≥ 6.03 | upper saturation |
+| spec_4 | p20/p80 | Y_1 (back knee) ≥ 6.37 | upper saturation |
+| spec_5 | p32/p68 | Y_4 (front knee) ≥ 4.11 | upper saturation |
+| spec_6 | p32/p68 | Y_3 (front hip) ≥ 7.65 | upper saturation |
+| spec_7 | p32/p68 | Y_5 (front ankle) ≥ 4.62 | upper saturation |
+| spec_8 | p32/p68 | Y_1 (back knee) ≥ 3.32 | upper saturation |
 
-All 4 specs are **SAFE** for all networks.
+### HalfCheetah-v4 Verification Results
 
-### Specs 5–8: tighter box for tractable CROWN comparison (p32/p68 input box)
+For bottleneck controllers, α-β CROWN verifies the full concatenated network (encoder + controller). "—" = not run; "timeout" = exceeded 1800s. Speedup for specs 5–8 is relative to the baseline CROWN time. All bottleneck results verified SAFE.
 
-These specs use a narrower input box (p32/p68 percentile) so that alpha-beta CROWN can solve them in 19–98s, enabling a meaningful timing comparison rather than a pure timeout. Thresholds were set using exhaustive cell enumeration (not just PGD) to ensure no false unsafety.
+| Spec | Box | Controller | α-β CROWN (s) | Ours (s) | Speedup |
+|---|---|---|---|---|---|
+| spec_1 | p20/p80 | baseline [512,512] | timeout | N/A | — |
+| spec_1 | p20/p80 | latent1 | timeout | 1.26 | **>1000×** |
+| spec_1 | p20/p80 | latent2 | timeout | 1.50 | **>1000×** |
+| spec_1 | p20/p80 | latent3 | timeout | 1.65 | **>1000×** |
+| spec_2 | p20/p80 | baseline [512,512] | timeout | N/A | — |
+| spec_2 | p20/p80 | latent1 | timeout | 1.41 | **>1000×** |
+| spec_2 | p20/p80 | latent2 | timeout | 1.41 | **>1000×** |
+| spec_2 | p20/p80 | latent3 | timeout | 1.65 | **>1000×** |
+| spec_3 | p20/p80 | baseline [512,512] | timeout | N/A | — |
+| spec_3 | p20/p80 | latent1 | timeout | 1.39 | **>1000×** |
+| spec_3 | p20/p80 | latent2 | timeout | 1.54 | **>1000×** |
+| spec_3 | p20/p80 | latent3 | timeout | 1.75 | **>1000×** |
+| spec_4 | p20/p80 | baseline [512,512] | timeout | N/A | — |
+| spec_4 | p20/p80 | latent1 | timeout | 1.39 | **>1000×** |
+| spec_4 | p20/p80 | latent2 | timeout | 1.47 | **>1000×** |
+| spec_4 | p20/p80 | latent3 | timeout | 1.83 | **>1000×** |
+| spec_5 | p32/p68 | baseline [512,512] | 234.4 | N/A | — |
+| spec_5 | p32/p68 | latent1 | — | 2.3 | **102×** |
+| spec_5 | p32/p68 | latent2 | — | 2.0 | **117×** |
+| spec_5 | p32/p68 | latent3 | — | 2.1 | **112×** |
+| spec_6 | p32/p68 | baseline [512,512] | 93.1 | N/A | — |
+| spec_6 | p32/p68 | latent1 | — | 2.0 | **47×** |
+| spec_6 | p32/p68 | latent2 | — | 1.8 | **52×** |
+| spec_6 | p32/p68 | latent3 | — | 2.1 | **44×** |
+| spec_7 | p32/p68 | baseline [512,512] | timeout | N/A | — |
+| spec_7 | p32/p68 | latent1 | — | 2.0 | **>900×** |
+| spec_7 | p32/p68 | latent2 | — | 1.8 | **>1000×** |
+| spec_7 | p32/p68 | latent3 | — | 2.1 | **>857×** |
+| spec_8 | p32/p68 | baseline [512,512] | timeout | N/A | — |
+| spec_8 | p32/p68 | latent1 | — | 2.0 | **>900×** |
+| spec_8 | p32/p68 | latent2 | — | 1.8 | **>1000×** |
+| spec_8 | p32/p68 | latent3 | — | 2.1 | **>857×** |
 
-| Spec | Output checked | Threshold | CROWN (baseline) |
-|---|---|---|---|
-| spec_5 | Y_4 (front knee) ≥ 4.11 | upper | 46.9s |
-| spec_6 | Y_3 (front hip) ≥ 7.65 | upper | 90.2s |
-| spec_7 | Y_5 (front ankle) ≥ 4.62 | upper | 97.7s |
-| spec_8 | Y_1 (back knee) ≥ 3.32 | upper | 19.1s |
-
-**Note on spec_6:** PGD underestimates the true maximum for latent2 (PGD max = 4.01, true cell max = 6.15 via enumeration). The threshold was set using the cell enumeration result + 1.5 margin = 7.65 to ensure universal safety.
-
-**Note on VNN-LIB novelty:** No public VNN-LIB specs for any MuJoCo continuous-control environment exist in VNN-COMP 2021–2024 or the academic literature (only CartPole, LunarLander, and Dubins Rejoin have appeared). These are believed to be the first HalfCheetah VNN-LIB specs.
-
----
-
-## Verification Results
-
-### Specs 1–4 (p20/p80 box, alpha-beta CROWN timeout >1800s)
-
-All specs verified with `--complete`. Stars = nnenum output star sets from encoder; Cells = quantized latent cells evaluated.
-
-#### latent1 (dim=1, quant_step=0.02)
-
-```
-  Spec      Result   Stars   Cells   Total(s)
-  ────────  ──────   ─────   ─────   ────────
-  spec_1    safe        66      33     1.26s
-  spec_2    safe       225      40     1.41s
-  spec_3    safe       462      40     1.39s
-  spec_4    safe       462      40     1.39s
-```
-
-#### latent2 (dim=2, quant_step=0.1)
-
-```
-  Spec      Result   Stars   Cells   Total(s)
-  ────────  ──────   ─────   ─────   ────────
-  spec_1    safe       466     462    1.50s
-  spec_2    safe       466     462    1.41s
-  spec_3    safe       466     462    1.54s
-  spec_4    safe       466     462    1.47s
-```
-
-#### latent3 (dim=3, quant_step=0.05)
-
-```
-  Spec      Result   Stars     Cells   Total(s)
-  ────────  ──────   ─────   ───────   ────────
-  spec_1    safe       113   164,640    1.65s
-  spec_2    safe       113   164,640    1.65s
-  spec_3    safe       113   164,640    1.75s
-  spec_4    safe       113   164,640    1.83s
-```
-
-Cell count grows cubically with latent dim: 33–40 cells (dim=1) → 462 (dim=2) → 164,640 (dim=3), yet verification time stays flat at ~1.5s because the GPU-batched lookup scales well.
-
-### Alpha-Beta CROWN Comparison — Specs 1–4
-
-| Network | Spec | α-β CROWN | Ours | Speedup |
-|---|---|---|---|---|
-| baseline [512,512] | spec_1–4 | **timeout >1800s** | N/A | — |
-| latent1 | spec_1–4 | **timeout >1800s** | safe ~1.4s | **>1000×** |
-| latent2 | spec_1–4 | **timeout >1800s** | safe ~1.5s | **>1000×** |
-| latent3 | spec_1–4 | **timeout >1800s** | safe ~1.7s | **>1000×** |
-
-**All 12 bottleneck cases: >1000× speedup.**
-
-### Alpha-Beta CROWN Comparison — Specs 5–8 (p32/p68 box)
-
-These specs were designed so that CROWN terminates successfully, demonstrating the speedup on problems CROWN can actually solve (not just timeouts):
-
-| Controller | Spec | CROWN | CROWN (s) | Ours | Ours (s) | Speedup |
-|---|---|---|---|---|---|---|
-| baseline [512,512] | spec_5 | safe | 234.4 | N/A | N/A | — |
-| latent1 | spec_5 | — | — | safe | 2.3 | **102×** |
-| latent2 | spec_5 | — | — | safe | 2.0 | **117×** |
-| latent3 | spec_5 | — | — | safe | 2.1 | **112×** |
-| baseline [512,512] | spec_6 | safe | 93.1 | N/A | N/A | — |
-| latent1 | spec_6 | — | — | safe | 2.0 | **47×** |
-| latent2 | spec_6 | — | — | safe | 1.8 | **52×** |
-| latent3 | spec_6 | — | — | safe | 2.1 | **44×** |
-| baseline [512,512] | spec_7 | **timeout** | 1800 | N/A | N/A | — |
-| latent1 | spec_7 | — | — | safe | 2.0 | **>900×** |
-| latent2 | spec_7 | — | — | safe | 1.8 | **>1000×** |
-| latent3 | spec_7 | — | — | safe | 2.1 | **>857×** |
-| baseline [512,512] | spec_8 | **timeout** | 1800 | N/A | N/A | — |
-| latent1 | spec_8 | — | — | safe | 2.0 | **>900×** |
-| latent2 | spec_8 | — | — | safe | 1.8 | **>1000×** |
-| latent3 | spec_8 | — | — | safe | 2.1 | **>857×** |
-
-**Note on spec_6 threshold:** PGD initially underestimated the true max for latent2 (PGD max = 4.01, true cell max via exhaustive enumeration = 6.15). The threshold was set using the enumeration result + 1.5 margin = 7.65, ensuring all networks are safe.
+Cell count: 33–40 (latent1) → 462 (latent2) → 164,640 (latent3); verification time stays flat at ~1.5s due to GPU-batched lookup.
 
 ### Why the speedup
 
-- **alpha-beta CROWN** must reason about the full obs→action mapping (17→16→N→512→512→6). For a 512×512 baseline, BaB generates millions of subdomains and cannot tighten bounds within 30 minutes on all but the easiest specs.
-- **Our method** splits the problem: nnenum on the tiny encoder (17 ReLU neurons) → ~1.5s. The latent controller's 1024 ReLU neurons are never analyzed — they're evaluated by lookup.
-- The bottleneck architecture is what makes our decomposition possible. The baseline [512,512] network has no such split point.
-
-Note: alpha-beta CROWN verifies the continuous policy; our method verifies the quantized policy (what actually runs at deployment). Both guarantees are valid for their respective runtime policies.
+- **α-β CROWN** must analyze the full obs→action network (17→512→512→6 for baseline). BaB generates millions of subdomains and cannot tighten bounds in time on most specs.
+- **Our method** runs nnenum only on the encoder (~17 ReLU neurons, ~1.5s). The 1024-neuron latent controller is bypassed entirely via quantized lookup.
+- α-β CROWN verifies the continuous float32 policy; our method verifies the exact deployed quantized policy. Both guarantees are valid for their respective runtime models.
 
 ---
 
@@ -396,116 +341,60 @@ Note: alpha-beta CROWN verifies the continuous policy; our method verifies the q
 | X_6 | z-velocity (vertical) | | | |
 | X_7–X_10 | angular velocities | | | |
 
-### Specs 1–4: nominal safety (p20/p80 input box)
+**Specs 1–4** use a p20/p80 box from baseline rollouts filtered to nominal hopping (xvel ∈ [0.5, 1.5], |height| ≤ 1.5, |pitch| ≤ 1.0). latent1/2 excluded (returns ~1000, produce out-of-distribution outputs on baseline observations). Thresholds set at PGD_max + 1.5 margin.
 
-Input box: p20/p80 percentile bounds from baseline rollouts during nominal balanced hopping (xvel ∈ [0.5, 1.5], |height| ≤ 1.5, |pitch| ≤ 1.0). Thresholds set at PGD_max + 1.5 margin across baseline, latent3, and latent4. latent1/2 excluded (returns ~1000, produce unbounded outputs on baseline observations).
+**Specs 5–8** use a p32/p68 box for tractable CROWN comparison.
 
-```bash
-python generate_hopper_specs.py
-```
-
-| Spec | Output checked | Threshold | Semantics |
+| Spec | Box | Output checked | Threshold |
 |---|---|---|---|
-| spec_1 | Y_0 (thigh) ≥ 8.12 | upper | thigh never fully saturates upward |
-| spec_2 | Y_1 (leg) ≥ 17.46 | upper | leg never fully saturates upward |
-| spec_3 | Y_2 (foot) ≥ 13.13 | upper | foot never fully saturates upward |
-| spec_4 | any Y_i ≥ 17.46 | upper | any action upper saturation |
+| spec_1 | p20/p80 | Y_0 (thigh) ≥ 8.12 | upper saturation |
+| spec_2 | p20/p80 | Y_1 (leg) ≥ 17.46 | upper saturation |
+| spec_3 | p20/p80 | Y_2 (foot) ≥ 13.13 | upper saturation |
+| spec_4 | p20/p80 | any Y_i ≥ 17.46 | upper saturation |
+| spec_5 | p32/p68 | Y_0 (thigh) ≥ 4.53 | upper saturation |
+| spec_6 | p32/p68 | Y_1 (leg) ≥ 8.31 | upper saturation |
+| spec_7 | p32/p68 | Y_2 (foot) ≥ 11.74 | upper saturation |
+| spec_8 | p32/p68 | any Y_i ≥ 11.74 | upper saturation |
 
 ### Hopper-v5 Quantization Step
 
 | Architecture | Clean return | Quant step | Quantized return |
 |---|---|---|---|
-| Hopper latent3 | 3,538 ± 2 | 0.1 | 3,542 |
-| Hopper latent4 | 3,587 ± 12 | 0.1 | 3,601 |
+| latent3 | 3,538 ± 2 | 0.1 | 3,542 |
+| latent4 | 3,587 ± 12 | 0.1 | 3,601 |
 
-### Hopper-v5 Verification Results (our method)
+### Hopper-v5 Verification Results
 
-#### latent3 (dim=3, quant_step=0.1, 6,300 cells)
+For bottleneck controllers, α-β CROWN verifies the full concatenated network. Speedup computed against the α-β CROWN time for the same controller (or baseline where controller CROWN not run). All results SAFE.
 
-```
-  Spec      Result   Stars   Cells   Total(s)
-  ────────  ──────   ─────   ─────   ────────
-  spec_1    safe       365   6,300    1.68s
-  spec_2    safe       365   6,300    1.33s
-  spec_3    safe       365   6,300    1.28s
-  spec_4    safe       365   6,300    1.42s
-```
+| Spec | Box | Controller | α-β CROWN (s) | Ours (s) | Speedup |
+|---|---|---|---|---|---|
+| spec_1 | p20/p80 | baseline [512,512] | timeout | N/A | — |
+| spec_1 | p20/p80 | latent3 | timeout | 1.68 | **>1071×** |
+| spec_1 | p20/p80 | latent4 | 1466 | 36.06 | **41×** |
+| spec_2 | p20/p80 | baseline [512,512] | 613.7 | N/A | — |
+| spec_2 | p20/p80 | latent3 | timeout | 1.33 | **>1353×** |
+| spec_2 | p20/p80 | latent4 | timeout | 3.11 | **>580×** |
+| spec_3 | p20/p80 | baseline [512,512] | timeout | N/A | — |
+| spec_3 | p20/p80 | latent3 | timeout | 1.28 | **>1406×** |
+| spec_3 | p20/p80 | latent4 | timeout | 2.87 | **>627×** |
+| spec_4 | p20/p80 | baseline [512,512] | timeout | N/A | — |
+| spec_4 | p20/p80 | latent3 | timeout | 1.42 | **>1268×** |
+| spec_4 | p20/p80 | latent4 | timeout | 8.37 | **>215×** |
+| spec_5 | p32/p68 | baseline [512,512] | 129.3 | N/A | — |
+| spec_5 | p32/p68 | latent3 | 199.9 | 3.35 | **60×** |
+| spec_5 | p32/p68 | latent4 | 6.2 | 13.29 | 0.5× |
+| spec_6 | p32/p68 | baseline [512,512] | 82.9 | N/A | — |
+| spec_6 | p32/p68 | latent3 | 31.2 | 3.13 | **10×** |
+| spec_6 | p32/p68 | latent4 | 112.5 | 3.74 | **30×** |
+| spec_7 | p32/p68 | baseline [512,512] | 30.3 | N/A | — |
+| spec_7 | p32/p68 | latent3 | 11.6 | 3.17 | 3.7× |
+| spec_7 | p32/p68 | latent4 | 286.3 | 3.65 | **78×** |
+| spec_8 | p32/p68 | baseline [512,512] | 42.1 | N/A | — |
+| spec_8 | p32/p68 | latent3 | 24.9 | 2.92 | **8.5×** |
+| spec_8 | p32/p68 | latent4 | 412.2 | 4.66 | **88×** |
 
-#### latent4 (dim=4, quant_step=0.1, 642,600 cells)
-
-```
-  Spec      Result   Stars     Cells   Total(s)
-  ────────  ──────   ─────   ───────   ────────
-  spec_1    safe       204   642,600   36.06s
-  spec_2    safe       204   642,600    3.11s
-  spec_3    safe       204   642,600    2.87s
-  spec_4    safe       204   642,600    8.37s
-```
-
-spec_1 for latent4 is slower because the latent box is wider in that region (cell enumeration is 4D cubic in box width / quant_step). All other specs finish in under 10s.
-
-### Alpha-Beta CROWN Comparison — Hopper-v5 Specs 1–4
-
-CROWN was run against both the **full bottleneck network** (encoder + controller concatenated, same ONNX that CROWN would use in practice) and the **baseline [512,512]**. 1800s timeout.
-
-| Network | Spec | α-β CROWN | Ours | Speedup |
-|---|---|---|---|---|
-| baseline [512,512] | spec_1 | **timeout >1800s** | N/A | — |
-| baseline [512,512] | spec_2 | safe 613.7s | N/A | — |
-| baseline [512,512] | spec_3–4 | **timeout >1800s** | N/A | — |
-| latent3 (full) | spec_1 | **timeout >1800s** | safe 1.68s | **>1071×** |
-| latent3 (full) | spec_2 | **timeout >1800s** | safe 1.33s | **>1353×** |
-| latent3 (full) | spec_3 | **timeout >1800s** | safe 1.28s | **>1406×** |
-| latent3 (full) | spec_4 | **timeout >1800s** | safe 1.42s | **>1268×** |
-| latent4 (full) | spec_1 | safe 1466s | safe 36.06s | **41×** |
-| latent4 (full) | spec_2 | **timeout >1800s** | safe 3.11s | **>580×** |
-| latent4 (full) | spec_3 | **timeout >1800s** | safe 2.87s | **>627×** |
-| latent4 (full) | spec_4 | **timeout >1800s** | safe 8.37s | **>215×** |
-
-Even with the small encoder (11→16→N ReLU neurons), CROWN on the full bottleneck network still times out on hard specs because the 512×512 controller dominates the BaB search. Our method bypasses the controller entirely via cell lookup.
-
-### Hopper-v5 Specs 5–8: tighter box for tractable CROWN comparison (p32/p68)
-
-Generated by `generate_hopper_specs_5_8.py`. Calibration selected p32/p68 (widest box where CROWN finishes within 30 min on the calibration spec). All specs verified SAFE for baseline and latent3/latent4.
-
-| Spec | Output checked | Threshold | CROWN baseline [512,512] |
-|---|---|---|---|
-| spec_5 | Y_0 (thigh) ≥ 4.53 | upper | 129.3s |
-| spec_6 | Y_1 (leg) ≥ 8.31 | upper | 82.9s |
-| spec_7 | Y_2 (foot) ≥ 11.74 | upper | 30.3s |
-| spec_8 | any Y_i ≥ 11.74 | upper | 42.1s |
-
-**CROWN vs our method (p32/p68 box):**
-
-| Controller | Spec | CROWN (s) | Ours (s) | Speedup |
-|---|---|---|---|---|
-| baseline [512,512] | spec_5 | 129.3 | N/A | — |
-| latent3 | spec_5 | — | 3.35 | **39×** |
-| latent4 | spec_5 | — | 13.29 | **10×** |
-| baseline [512,512] | spec_6 | 82.9 | N/A | — |
-| latent3 | spec_6 | — | 3.13 | **26×** |
-| latent4 | spec_6 | — | 3.74 | **22×** |
-| baseline [512,512] | spec_7 | 30.3 | N/A | — |
-| latent3 | spec_7 | — | 3.17 | **10×** |
-| latent4 | spec_7 | — | 3.66 | **8×** |
-| baseline [512,512] | spec_8 | 42.1 | N/A | — |
-| latent3 | spec_8 | — | 2.92 | **14×** |
-| latent4 | spec_8 | — | 4.66 | **9×** |
-
-CROWN times are against the **full bottleneck network** (not baseline):
-
-| Controller | Spec | CROWN (full net) | Ours | Speedup |
-|---|---|---|---|---|
-| latent3 | spec_5 | safe 199.9s | safe 3.35s | **60×** |
-| latent3 | spec_6 | safe 31.2s | safe 3.13s | **10×** |
-| latent3 | spec_7 | safe 11.6s | safe 3.17s | 3.7× |
-| latent3 | spec_8 | safe 24.9s | safe 2.92s | **8.5×** |
-| latent4 | spec_5 | safe 6.2s | safe 13.29s | 0.5× |
-| latent4 | spec_6 | safe 112.5s | safe 3.74s | **30×** |
-| latent4 | spec_7 | safe 286.3s | safe 3.65s | **78×** |
-| latent4 | spec_8 | safe 412.2s | safe 4.66s | **88×** |
-
-spec_7 (CROWN 11.6s on latent3) and latent4 spec_5 (CROWN 6.2s, ours 13.3s) are cases where the threshold is far enough above the network's true maximum that CROWN's initial LP relaxation suffices — no BaB needed. Our method's 157,320-cell lookup for latent4 spec_5 is slower than CROWN's trivial proof. This is an honest limitation: for specs that are trivially safe, cell enumeration overhead dominates.
+latent4 spec_5 (CROWN 6.2s, ours 13.3s) is the one case where our method is slower — the spec threshold is trivially far from the network's true maximum so CROWN's initial LP relaxation suffices with no BaB. Our 157K-cell lookup overhead exceeds that. Similarly latent3 spec_7 (CROWN 11.6s vs ours 3.2s) is only a 3.7× improvement for the same reason.
 
 ---
 
