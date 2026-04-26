@@ -111,9 +111,9 @@ OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python train_sac.py \
 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python train_sac.py \
     --env Hopper-v5 --pi 16 4 512 512 --label latent4 --seed 0
 
-# Standard [256, 256] baseline
+# Standard [512, 512] baseline
 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python train_sac.py \
-    --env Hopper-v5 --pi 256 256 --label baseline --seed 0
+    --env Hopper-v5 --pi 512 512 --label baseline --seed 0
 ```
 
 
@@ -141,11 +141,11 @@ All training scripts support checkpoint/resume: if `checkpoints/` contains `.zip
 
 | Architecture | Mean return | Notes |
 |---|---|---|
-| `[512, 512]` baseline | 3,722 ± 381 | No bottleneck |
+| `[512, 512]` baseline | 4,117 ± 22 | No bottleneck |
 | `[16, 1, 512, 512]` latent1 | 1,058 ± 1 | dim=1 too restrictive |
 | `[16, 2, 512, 512]` latent2 | 976 ± 130 | dim=2 still struggles |
-| `[16, 3, 512, 512]` latent3 | 3,538 ± 2 | ~95% of baseline |
-| `[16, 4, 512, 512]` latent4 | 3,587 ± 12 | ~96% of baseline |
+| `[16, 3, 512, 512]` latent3 | 3,538 ± 2 | ~86% of baseline |
+| `[16, 4, 512, 512]` latent4 | 3,587 ± 12 | ~87% of baseline |
 
 ---
 
@@ -268,6 +268,8 @@ OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python verify_policy.py \
 
 **Specs 5–8** use a narrower p32/p68 box so that α-β CROWN can terminate (not just timeout), enabling a direct timing comparison. Thresholds set via exhaustive cell enumeration.
 
+**Specs 9–12** are provably unsafe specifications designed to stress-test falsification. Thresholds set at cell_max − 0.05 (latent3), guaranteeing a violation exists but hidden in a thin polytope preimage that PGD struggles to find.
+
 | Spec | Box | Output checked | Threshold |
 |---|---|---|---|
 | spec_1 | p20/p80 | Y_4 (front knee) ≥ 5.07 | upper saturation |
@@ -278,47 +280,29 @@ OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python verify_policy.py \
 | spec_6 | p32/p68 | Y_3 (front hip) ≥ 7.65 | upper saturation |
 | spec_7 | p32/p68 | Y_5 (front ankle) ≥ 4.62 | upper saturation |
 | spec_8 | p32/p68 | Y_1 (back knee) ≥ 3.32 | upper saturation |
+| spec_9 | p20/p80 | Y_0 (back hip) ≥ 4.90 | unsafe witness (1/164,640 cells) |
+| spec_10 | p20/p80 | Y_1 (back knee) ≥ 5.97 | unsafe witness (1/164,640 cells) |
+| spec_11 | p20/p80 | Y_2 (back ankle) ≥ 4.00 | unsafe witness (24/164,640 cells) |
+| spec_12 | p20/p80 | Y_3 (front hip) ≥ 3.82 | unsafe witness (3/164,640 cells) |
 
 ### HalfCheetah-v4 Verification Results
 
-For bottleneck controllers, α-β CROWN verifies the full concatenated network (encoder + controller). "—" = not run; "timeout" = exceeded 1800s. Speedup for specs 5–8 is relative to the baseline CROWN time. All bottleneck results verified SAFE.
+For bottleneck controllers, α-β CROWN verifies the full concatenated network (encoder + controller). "—" = not run; "timeout" = exceeded 1800s; "error" = nnenum OOM/crash. Speedup is relative to α-β CROWN time on the same controller. Specs 1–8 verified SAFE; specs 9–12 verified UNSAFE.
 
-| Spec | Box | Controller | α-β CROWN (s) | Ours (s) | Speedup |
-|---|---|---|---|---|---|
-| spec_1 | p20/p80 | baseline [512,512] | timeout | N/A | — |
-| spec_1 | p20/p80 | latent1 | timeout | 1.26 | **>1000×** |
-| spec_1 | p20/p80 | latent2 | timeout | 1.50 | **>1000×** |
-| spec_1 | p20/p80 | latent3 | timeout | 1.65 | **>1000×** |
-| spec_2 | p20/p80 | baseline [512,512] | timeout | N/A | — |
-| spec_2 | p20/p80 | latent1 | timeout | 1.41 | **>1000×** |
-| spec_2 | p20/p80 | latent2 | timeout | 1.41 | **>1000×** |
-| spec_2 | p20/p80 | latent3 | timeout | 1.65 | **>1000×** |
-| spec_3 | p20/p80 | baseline [512,512] | timeout | N/A | — |
-| spec_3 | p20/p80 | latent1 | timeout | 1.39 | **>1000×** |
-| spec_3 | p20/p80 | latent2 | timeout | 1.54 | **>1000×** |
-| spec_3 | p20/p80 | latent3 | timeout | 1.75 | **>1000×** |
-| spec_4 | p20/p80 | baseline [512,512] | timeout | N/A | — |
-| spec_4 | p20/p80 | latent1 | timeout | 1.39 | **>1000×** |
-| spec_4 | p20/p80 | latent2 | timeout | 1.47 | **>1000×** |
-| spec_4 | p20/p80 | latent3 | timeout | 1.83 | **>1000×** |
-| spec_5 | p32/p68 | baseline [512,512] | 234.4 | N/A | — |
-| spec_5 | p32/p68 | latent1 | — | 2.3 | **102×** |
-| spec_5 | p32/p68 | latent2 | — | 2.0 | **117×** |
-| spec_5 | p32/p68 | latent3 | — | 2.1 | **112×** |
-| spec_6 | p32/p68 | baseline [512,512] | 93.1 | N/A | — |
-| spec_6 | p32/p68 | latent1 | — | 2.0 | **47×** |
-| spec_6 | p32/p68 | latent2 | — | 1.8 | **52×** |
-| spec_6 | p32/p68 | latent3 | — | 2.1 | **44×** |
-| spec_7 | p32/p68 | baseline [512,512] | timeout | N/A | — |
-| spec_7 | p32/p68 | latent1 | — | 2.0 | **>900×** |
-| spec_7 | p32/p68 | latent2 | — | 1.8 | **>1000×** |
-| spec_7 | p32/p68 | latent3 | — | 2.1 | **>857×** |
-| spec_8 | p32/p68 | baseline [512,512] | timeout | N/A | — |
-| spec_8 | p32/p68 | latent1 | — | 2.0 | **>900×** |
-| spec_8 | p32/p68 | latent2 | — | 1.8 | **>1000×** |
-| spec_8 | p32/p68 | latent3 | — | 2.1 | **>857×** |
-
-Cell count: 33–40 (latent1) → 462 (latent2) → 164,640 (latent3); verification time stays flat at ~1.5s due to GPU-batched lookup.
+| Spec | Box | CROWN baseline (s) | CROWN latent3 (s) | nnenum baseline (s) | nnenum latent3 (s) | Ours latent3 (s) | Speedup |
+|---|---|---|---|---|---|---|---|
+| spec_1 | p20/p80 | timeout | timeout | error (355) | error (925) | 1.65 | **>1000×** |
+| spec_2 | p20/p80 | timeout | timeout | error (1217) | timeout | 1.65 | **>1000×** |
+| spec_3 | p20/p80 | timeout | timeout | timeout | error (1179) | 1.75 | **>1000×** |
+| spec_4 | p20/p80 | timeout | timeout | error (1042) | error (1166) | 1.83 | **>1000×** |
+| spec_5 | p32/p68 | 234.4 | 44.7 | error (282) | safe (14.1) | 13.4 | **3.3×** |
+| spec_6 | p32/p68 | 93.1 | 150.2 | error (86) | safe (15.1) | 13.3 | **11.3×** |
+| spec_7 | p32/p68 | timeout | 119.1 | timeout | safe (15.6) | 13.2 | **9.0×** |
+| spec_8 | p32/p68 | timeout | timeout | timeout | safe (16.5) | 13.6 | **>132×** |
+| spec_9 | p20/p80 | unsafe (0.16) | unsafe (0.22) | timeout | unsafe (220) | 1.91 | — |
+| spec_10 | p20/p80 | timeout | timeout | error (1281) | — | 1.93 | **>933×** |
+| spec_11 | p20/p80 | unsafe (0.01) | timeout | unsafe (183) | — | 1.76 | **>1023×** |
+| spec_12 | p20/p80 | unsafe (0.02) | unsafe (0.03) | error (457) | — | 1.80 | — |
 
 ### Why the speedup
 
@@ -345,6 +329,8 @@ Cell count: 33–40 (latent1) → 462 (latent2) → 164,640 (latent3); verificat
 
 **Specs 5–8** use a p32/p68 box for tractable CROWN comparison.
 
+**Specs 9–12** are provably unsafe specifications (latent3, p20/p80 box). Specs 9–11 target individual action dimensions; spec_12 is a combined disjunction (any Y_i exceeds its per-dim threshold).
+
 | Spec | Box | Output checked | Threshold |
 |---|---|---|---|
 | spec_1 | p20/p80 | Y_0 (thigh) ≥ 8.12 | upper saturation |
@@ -355,6 +341,10 @@ Cell count: 33–40 (latent1) → 462 (latent2) → 164,640 (latent3); verificat
 | spec_6 | p32/p68 | Y_1 (leg) ≥ 8.31 | upper saturation |
 | spec_7 | p32/p68 | Y_2 (foot) ≥ 11.74 | upper saturation |
 | spec_8 | p32/p68 | any Y_i ≥ 11.74 | upper saturation |
+| spec_9 | p20/p80 | Y_0 (thigh) ≥ 8.60 | unsafe witness (1/6,300 cells) |
+| spec_10 | p20/p80 | Y_1 (leg) ≥ 7.40 | unsafe witness (2/6,300 cells) |
+| spec_11 | p20/p80 | Y_2 (foot) ≥ 7.73 | unsafe witness (1/6,300 cells) |
+| spec_12 | p20/p80 | any Y_i ≥ per-dim threshold | combined disjunction (4 cells) |
 
 ### Hopper-v5 Quantization Step
 
@@ -365,65 +355,24 @@ Cell count: 33–40 (latent1) → 462 (latent2) → 164,640 (latent3); verificat
 
 ### Hopper-v5 Verification Results
 
-For bottleneck controllers, α-β CROWN verifies the full concatenated network. Speedup computed against the α-β CROWN time for the same controller (or baseline where controller CROWN not run). All results SAFE.
+For bottleneck controllers, α-β CROWN verifies the full concatenated network. Speedup computed against the α-β CROWN time for the same controller. Specs 1–8 verified SAFE; specs 9–12 verified UNSAFE.
 
-| Spec | Box | Controller | α-β CROWN (s) | Ours (s) | Speedup |
+| Spec | Box | CROWN baseline (s) | CROWN latent3 (s) | Ours latent3 (s) | Speedup |
 |---|---|---|---|---|---|
-| spec_1 | p20/p80 | baseline [512,512] | timeout | N/A | — |
-| spec_1 | p20/p80 | latent3 | timeout | 1.68 | **>1071×** |
-| spec_1 | p20/p80 | latent4 | 1466 | 36.06 | **41×** |
-| spec_2 | p20/p80 | baseline [512,512] | 613.7 | N/A | — |
-| spec_2 | p20/p80 | latent3 | timeout | 1.33 | **>1353×** |
-| spec_2 | p20/p80 | latent4 | timeout | 3.11 | **>580×** |
-| spec_3 | p20/p80 | baseline [512,512] | timeout | N/A | — |
-| spec_3 | p20/p80 | latent3 | timeout | 1.28 | **>1406×** |
-| spec_3 | p20/p80 | latent4 | timeout | 2.87 | **>627×** |
-| spec_4 | p20/p80 | baseline [512,512] | timeout | N/A | — |
-| spec_4 | p20/p80 | latent3 | timeout | 1.42 | **>1268×** |
-| spec_4 | p20/p80 | latent4 | timeout | 8.37 | **>215×** |
-| spec_5 | p32/p68 | baseline [512,512] | 129.3 | N/A | — |
-| spec_5 | p32/p68 | latent3 | 199.9 | 3.35 | **60×** |
-| spec_5 | p32/p68 | latent4 | 6.2 | 13.29 | 0.5× |
-| spec_6 | p32/p68 | baseline [512,512] | 82.9 | N/A | — |
-| spec_6 | p32/p68 | latent3 | 31.2 | 3.13 | **10×** |
-| spec_6 | p32/p68 | latent4 | 112.5 | 3.74 | **30×** |
-| spec_7 | p32/p68 | baseline [512,512] | 30.3 | N/A | — |
-| spec_7 | p32/p68 | latent3 | 11.6 | 3.17 | 3.7× |
-| spec_7 | p32/p68 | latent4 | 286.3 | 3.65 | **78×** |
-| spec_8 | p32/p68 | baseline [512,512] | 42.1 | N/A | — |
-| spec_8 | p32/p68 | latent3 | 24.9 | 2.92 | **8.5×** |
-| spec_8 | p32/p68 | latent4 | 412.2 | 4.66 | **88×** |
+| spec_1 | p20/p80 | timeout | timeout | 1.68 | **>1071×** |
+| spec_2 | p20/p80 | 613.7 | timeout | 1.33 | **>1353×** |
+| spec_3 | p20/p80 | timeout | timeout | 1.28 | **>1406×** |
+| spec_4 | p20/p80 | timeout | timeout | 1.42 | **>1268×** |
+| spec_5 | p32/p68 | 129.3 | 199.9 | 3.35 | **60×** |
+| spec_6 | p32/p68 | 82.9 | 31.2 | 3.13 | **10×** |
+| spec_7 | p32/p68 | 30.3 | 11.6 | 3.17 | 3.7× |
+| spec_8 | p32/p68 | 42.1 | 24.9 | 2.92 | **8.5×** |
+| spec_9 | p20/p80 | timeout | timeout | 1.68 | **>1071×** |
+| spec_10 | p20/p80 | timeout | timeout | 1.22 | **>1475×** |
+| spec_11 | p20/p80 | unsafe (0.01) | timeout | 1.32 | **>1364×** |
+| spec_12 | p20/p80 | unsafe (0.01) | timeout | 1.41 | **>1277×** |
 
 latent4 spec_5 (CROWN 6.2s, ours 13.3s) is the one case where our method is slower — the spec threshold is trivially far from the network's true maximum so CROWN's initial LP relaxation suffices with no BaB. Our 157K-cell lookup overhead exceeds that. Similarly latent3 spec_7 (CROWN 11.6s vs ours 3.2s) is only a 3.7× improvement for the same reason.
-
----
-
-## Trajectory Robustness Specs
-
-Generated by `gen_trajectory_specs.py`: for each of 5 evenly-spaced states from a rollout, an L-inf ball of radius `eps=0.1` is drawn around the reference observation. Two specs are produced per state:
-
-- **unsafe**: `delta = max_dev - 0.05` — a violation is witnessed by sampling 200 random points in the box
-- **safe**: `delta` is increased until the verifier confirms no cell in the grid violates
-
-```bash
-python gen_trajectory_specs.py --env HalfCheetah-v4 \
-    --run_dir sac_sweep_runs/HalfCheetah-v4/latent2/seed0 \
-    --quant_step 0.1 --label latent2
-
-OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python verify_policy.py \
-    --run_dir sac_sweep_runs/HalfCheetah-v4/latent2/seed0 --quant_step 0.1 \
-    --spec_path specs/HalfCheetah-v4/traj_spec_*_latent2_*.vnnlib
-```
-
-### Results (HalfCheetah-v4, 5 states × 2 specs × 3 controllers = 30 specs)
-
-All 30 specs verify correctly.
-
-| Controller | Stars | Cells | Total(s) |
-|---|---|---|---|
-| latent1 (dim=1) | 3–6 | 5–7 | ~1.0s |
-| latent2 (dim=2) | 10–27 | 30–56 | ~1.3s |
-| latent3 (dim=3) | 1–28 | 1,440–16,864 | ~1.3s |
 
 ---
 
@@ -454,7 +403,6 @@ The 2D latent space organizes locomotion into four gait phases: **Peak push → 
 ├── generate_halfcheetah_specs_v2.py # Safety specs 1–4 (p20/p80, universally safe)
 ├── generate_specs_5_8.py            # Safety specs 5–8 (p32/p68, CROWN-tractable)
 ├── gen_robustness_specs.py          # Local L-inf robustness specs
-├── gen_trajectory_specs.py          # Paired SAT/UNSAT specs from trajectory states
 ├── figures/
 │   ├── jacobian_analysis.py             # Jacobian SVD + effective rank analysis
 │   ├── mor_analysis.py                  # MOR: effective rank vs performance retention
@@ -468,8 +416,7 @@ The 2D latent space organizes locomotion into four gait phases: **Peak push → 
 │   ├── HalfCheetah-v4/
 │   │   ├── spec_{1..4}.vnnlib          # Nominal safety specs (p20/p80)
 │   │   ├── spec_{5..8}.vnnlib          # Tighter specs (p32/p68, CROWN-tractable)
-│   │   ├── rob_spec_*.vnnlib           # Local robustness specs
-│   │   └── traj_spec_*.vnnlib          # Trajectory robustness specs
+│   │   └── rob_spec_*.vnnlib           # Local robustness specs
 │   └── Hopper-v5/
 │       └── spec_{1..4}.vnnlib
 ├── sac_sweep_runs/

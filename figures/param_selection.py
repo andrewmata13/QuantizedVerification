@@ -1,12 +1,9 @@
 """
 param_selection.py
 
-Two-panel figure per environment showing the parameter selection rationale:
-  Left  — Latent dim vs mean return (why we chose N=3)
-  Right — Quant step vs mean return (why we chose q*)
-
-The latent-dim panel uses hardcoded evaluation data (already collected).
-The quant-step panel runs fresh rollouts over a sweep of step sizes.
+Two-panel figure showing parameter selection rationale across both environments:
+  Left  — Latent dim vs % of baseline return (grouped bars, both envs)
+  Right — Quant step vs % of baseline return (line, both envs, 85% threshold)
 
 Usage:
     python figures/param_selection.py
@@ -22,37 +19,38 @@ import torch
 import torch.nn as nn
 import gymnasium as gym
 from stable_baselines3.common.vec_env import DummyVecEnv, VecMonitor, VecNormalize
-from stable_baselines3 import SAC
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ["MUJOCO_GL"] = "egl"
 os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
 os.environ.setdefault("OMP_NUM_THREADS", "1")
 
+STYLE = os.path.join(os.path.dirname(__file__), "bak_matplotlib.mlpstyle")
+THRESHOLD = 85.0   # % of baseline — used to pick chosen quant step
 
-# ── Config ─────────────────────────────────────────────────────────────────────
+QUANT_STEPS = [0.01, 0.02, 0.05, 0.1, 0.25, 0.5, 1.0]
 
 CONFIGS = [
     {
-        "env":            "HalfCheetah-v4",
-        "color":          "#1976D2",
+        "env":             "HalfCheetah-v4",
+        "label":           "HalfCheetah",
+        "color":           "#4488FF",
         "baseline_return": 15264,
-        # latent_dim → (run_dir, clean_return)
         "latent_runs": {
             1: ("sac_sweep_runs/HalfCheetah-v4/arch0/seed0",   6683),
             2: ("sac_sweep_runs/HalfCheetah-v4/latent2/seed0", 8705),
             3: ("sac_sweep_runs/HalfCheetah-v4/latent3/seed0", 13522),
         },
         "chosen_latent":  3,
-        # quant sweep: run_dir, chosen step, sweep values
-        "quant_run_dir":  "sac_sweep_runs/HalfCheetah-v4/latent3/seed0",
         "chosen_quant":   0.05,
-        "quant_steps":    [0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1.0],
+        "quant_run_dir":  "sac_sweep_runs/HalfCheetah-v4/latent3/seed0",
+        "quant_steps":    QUANT_STEPS,
     },
     {
-        "env":            "Hopper-v5",
-        "color":          "#388E3C",
-        "baseline_return": 3722,
+        "env":             "Hopper-v5",
+        "label":           "Hopper",
+        "color":           "red",
+        "baseline_return": 4117,
         "latent_runs": {
             1: ("sac_sweep_runs/Hopper-v5/arch0/seed0",   1058),
             2: ("sac_sweep_runs/Hopper-v5/latent2/seed0", 976),
@@ -60,14 +58,14 @@ CONFIGS = [
             4: ("sac_sweep_runs/Hopper-v5/latent4/seed0", 3587),
         },
         "chosen_latent":  3,
-        "quant_run_dir":  "sac_sweep_runs/Hopper-v5/latent3/seed0",
         "chosen_quant":   0.1,
-        "quant_steps":    [0.02, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0],
+        "quant_run_dir":  "sac_sweep_runs/Hopper-v5/latent3/seed0",
+        "quant_steps":    QUANT_STEPS,
     },
 ]
 
 
-# ── Quant-step evaluation ──────────────────────────────────────────────────────
+# ── Rollout helpers ────────────────────────────────────────────────────────────
 
 def load_bottleneck(run_dir, env_id, seed=42):
     env = VecNormalize.load(
@@ -77,14 +75,14 @@ def load_bottleneck(run_dir, env_id, seed=42):
     env.training = False
     env.norm_reward = False
     env.seed(seed)
-    encoder    = torch.load(f"{run_dir}/encoder_full.pth",
-                            weights_only=False).cpu().eval()
-    lat_ctrl   = torch.load(f"{run_dir}/latent_controller_full.pth",
-                            weights_only=False).cpu().eval()
+    encoder  = torch.load(f"{run_dir}/encoder_full.pth",
+                          weights_only=False).cpu().eval()
+    lat_ctrl = torch.load(f"{run_dir}/latent_controller_full.pth",
+                          weights_only=False).cpu().eval()
     return encoder, lat_ctrl, env
 
 
-def quantize(z: np.ndarray, q: float) -> np.ndarray:
+def quantize(z, q):
     return np.floor(z / q) * q + q / 2.0
 
 
@@ -111,131 +109,129 @@ def eval_quant(encoder, lat_ctrl, eval_env, quant_step, n_episodes, seed=42):
 
 
 def sweep_quant(cfg, n_episodes):
-    run_dir  = cfg["quant_run_dir"]
-    env_id   = cfg["env"]
-    steps    = cfg["quant_steps"]
-
+    run_dir = cfg["quant_run_dir"]
+    env_id  = cfg["env"]
+    steps   = cfg["quant_steps"]
     print(f"  Loading {run_dir} ...")
     encoder, lat_ctrl, eval_env = load_bottleneck(run_dir, env_id)
-
     results = {}
-    # clean (no quantization)
-    r = eval_quant(encoder, lat_ctrl, eval_env, None, n_episodes, seed=42)
-    results[None] = (r.mean(), r.std())
-    print(f"    clean: {r.mean():.0f} ± {r.std():.0f}")
-
+    r = eval_quant(encoder, lat_ctrl, eval_env, None, n_episodes)
+    results[None] = r.mean()
+    print(f"    clean: {r.mean():.0f}")
     for q in steps:
-        r = eval_quant(encoder, lat_ctrl, eval_env, q, n_episodes, seed=42)
-        results[q] = (r.mean(), r.std())
-        marker = " ← chosen" if q == cfg["chosen_quant"] else ""
-        print(f"    q={q:<6}: {r.mean():.0f} ± {r.std():.0f}{marker}")
-
+        r = eval_quant(encoder, lat_ctrl, eval_env, q, n_episodes)
+        results[q] = r.mean()
+        print(f"    q={q}: {r.mean():.0f}")
     eval_env.close()
     return results
 
 
 # ── Plotting ───────────────────────────────────────────────────────────────────
 
-def plot_latent_dim(ax, cfg):
-    color      = cfg["color"]
-    base_r     = cfg["baseline_return"]
-    runs       = cfg["latent_runs"]
-    chosen_n   = cfg["chosen_latent"]
-    dims       = sorted(runs.keys())
-    returns    = [runs[n][1] for n in dims]
-    bar_colors = [color if n != chosen_n else "darkorange" for n in dims]
+def plot_latent_dim(ax, configs):
+    width = 0.35
+    # Exclude latent4 — only show dims present in all envs up to chosen
+    all_dims = sorted({d for cfg in configs for d in cfg["latent_runs"]
+                       if d <= cfg["chosen_latent"]})
 
-    bars = ax.bar(dims, returns, color=bar_colors, alpha=0.85, zorder=3)
-    ax.axhline(base_r, color="black", linestyle="--", linewidth=1.5,
-               label=f"baseline ({base_r:,})", zorder=2)
+    for i, cfg in enumerate(configs):
+        base    = cfg["baseline_return"]
+        runs    = cfg["latent_runs"]
+        chosen  = cfg["chosen_latent"]
+        color   = cfg["color"]
+        offset  = (i - (len(configs) - 1) / 2) * width
 
-    # Annotate bars
-    for d, r, b in zip(dims, returns, bars):
-        ax.annotate(f"{r:,}", xy=(b.get_x() + b.get_width() / 2, r),
-                    xytext=(0, 4), textcoords="offset points",
-                    ha="center", fontsize=8)
+        xs      = [d + offset for d in all_dims if d in runs]
+        pcts    = [runs[d][1] / base * 100 for d in all_dims if d in runs]
+        colors  = [color for d in all_dims if d in runs]
 
-    # Legend patch for chosen
-    from matplotlib.patches import Patch
-    ax.legend(handles=[
-        Patch(facecolor=color, alpha=0.85, label="latent controller"),
-        Patch(facecolor="darkorange", alpha=0.85, label=f"chosen (N={chosen_n})"),
-        plt.Line2D([0], [0], color="black", linestyle="--", label=f"baseline"),
-    ], fontsize=8, loc="lower right")
+        ax.bar(xs, pcts, width=width * 0.9, color=colors,
+               alpha=0.85, zorder=3, label=cfg["label"])
 
-    ax.set_xlabel("Latent dim $N$")
-    ax.set_ylabel("Mean return")
-    ax.set_title(f"{cfg['env']}  —  Latent dim vs return")
-    ax.set_xticks(dims)
-    ax.set_ylim(0, base_r * 1.18)
+    ax.axhline(THRESHOLD, color="gray", linestyle=":", linewidth=1.2, zorder=2)
+
+    ax.set_xticks(all_dims)
+    ax.set_xticklabels([str(d) for d in all_dims])
+    ax.set_xlabel("Latent Dimension")
+    ax.set_ylabel("% of Baseline Return")
+    ax.set_ylim(0, 100)
+    ax.set_yticks([0, 20, 40, 60, 80, 100])
     ax.grid(True, alpha=0.25, axis="y", zorder=0)
 
+    from matplotlib.patches import Patch
+    legend_handles = [
+        Patch(facecolor=cfg["color"], alpha=0.85, label=cfg["label"])
+        for cfg in configs
+    ]
+    ax.legend(handles=legend_handles, fontsize=9, loc="upper left")
 
-def plot_quant_step(ax, cfg, quant_results):
-    color      = cfg["color"]
-    chosen_q   = cfg["chosen_quant"]
-    steps      = cfg["quant_steps"]
 
-    clean_mean, clean_std = quant_results[None]
-    means = [quant_results[q][0] for q in steps]
-    stds  = [quant_results[q][1] for q in steps]
+def plot_quant_step(ax, configs, quant_results):
+    for cfg in configs:
+        base    = cfg["baseline_return"]
+        steps   = cfg["quant_steps"]
+        color   = cfg["color"]
+        res     = quant_results[cfg["env"]]
 
-    ax.axhline(clean_mean, color="black", linestyle="--", linewidth=1.5,
-               label=f"clean (no quant): {clean_mean:.0f}", zorder=2)
+        pcts = [res[q] / base * 100 for q in steps]
 
-    ax.plot(steps, means, "o-", color=color,
-            linewidth=2, markersize=6, zorder=3,
-            label="quantized return")
+        ax.plot(steps, pcts, "o-", color=color, linewidth=2,
+                markersize=5, zorder=3, label=cfg["label"])
 
-    # Highlight chosen
-    chosen_mean = quant_results[chosen_q][0]
-    ax.plot([chosen_q], [chosen_mean], "D", color="darkorange",
-            markersize=10, zorder=4,
-            label=f"chosen q={chosen_q} ({chosen_mean:.0f})")
+        chosen_q   = cfg["chosen_quant"]
+        chosen_pct = res[chosen_q] / base * 100
+        ax.plot(chosen_q, chosen_pct, "D", color=color,
+                markersize=9, markeredgecolor="black",
+                markeredgewidth=2, zorder=4)
+
+    ax.axhline(THRESHOLD, color="gray", linestyle=":", linewidth=1.5,
+               label=f"{THRESHOLD:.0f}% threshold", zorder=2)
 
     ax.set_xscale("log")
-    ax.set_xlabel("Quantization step $q$")
-    ax.set_ylabel("Mean return")
-    ax.set_title(f"{cfg['env']}  —  Quant step vs return (latent{cfg['chosen_latent']})")
-    ax.legend(fontsize=8, loc="lower left")
+    ax.set_xlabel("Quantization Step")
+    ax.set_ylim(0, 100)
+    ax.set_yticks([0, 20, 40, 60, 80, 100])
+    ax.set_yticklabels([])
+    ax.set_xticks(QUANT_STEPS)
+    ax.set_xticklabels([str(q) for q in QUANT_STEPS])
     ax.grid(True, alpha=0.25, zorder=0)
+
+    from matplotlib.lines import Line2D
+    legend_handles = [
+        Line2D([0], [0], color=cfg["color"], marker="o", linewidth=2,
+               markersize=5, label=cfg["label"])
+        for cfg in configs
+    ]
+    ax.legend(handles=legend_handles, fontsize=9, loc="lower left")
 
 
 # ── Main ───────────────────────────────────────────────────────────────────────
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--n_episodes", type=int, default=20,
-                    help="Episodes per quant-step config (default: 20)")
-    ap.add_argument("--out", type=str, default="figures/param_selection.png")
+    ap.add_argument("--n_episodes", type=int, default=20)
+    ap.add_argument("--out", default="figures/param_selection.pdf")
     args = ap.parse_args()
+
+    if os.path.exists(STYLE):
+        plt.style.use(STYLE)
 
     os.makedirs("figures", exist_ok=True)
     np.random.seed(42)
     torch.manual_seed(42)
 
-    print(f"\n{'='*60}")
-    print(f"Parameter selection sweep (n_episodes={args.n_episodes})")
-    print(f"{'='*60}")
+    print(f"\nParameter selection sweep (n_episodes={args.n_episodes})")
 
-    # Run quant sweeps first (slow part)
     all_quant = {}
     for cfg in CONFIGS:
-        print(f"\n--- {cfg['env']} quant sweep ---")
+        print(f"\n--- {cfg['env']} ---")
         all_quant[cfg["env"]] = sweep_quant(cfg, args.n_episodes)
 
-    # Plot
-    n_envs = len(CONFIGS)
-    fig, axes = plt.subplots(n_envs, 2, figsize=(12, 4.5 * n_envs))
-    if n_envs == 1:
-        axes = axes.reshape(1, 2)
+    fig, axes = plt.subplots(1, 2, figsize=(11, 4.5))
 
-    for row, cfg in enumerate(CONFIGS):
-        plot_latent_dim(axes[row, 0], cfg)
-        plot_quant_step(axes[row, 1], cfg, all_quant[cfg["env"]])
+    plot_latent_dim(axes[0], CONFIGS)
+    plot_quant_step(axes[1], CONFIGS, all_quant)
 
-    fig.suptitle("Parameter Selection: Latent Dim and Quantization Step",
-                 fontsize=13)
     fig.tight_layout()
     fig.savefig(args.out, dpi=150, bbox_inches="tight")
     plt.close(fig)

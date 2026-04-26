@@ -306,11 +306,279 @@ def plot_semantic_heatmap(z1, z2, actions, quant_step, out_path,
         print(f"  {name}: {vals}")
 
 
+# ── Figure 3: spec boundary overlay ───────────────────────────────────────────
+
+SAFE_SPECS = [
+    # (action_dim, threshold, short_label, color)
+    (4, 5.0668,  "Spec 1: Y₄ (front knee)",   "#1E88E5"),
+    (3, 6.8722,  "Spec 2: Y₃ (front hip)",    "#D32F2F"),
+    (5, 6.0250,  "Spec 3: Y₅ (front ankle)",  "#43A047"),
+    (1, 6.3690,  "Spec 4: Y₁ (back knee)",    "#7B1FA2"),
+]
+
+
+def plot_spec_overlay(z1, z2, actions, quant_step, out_path, show_quant_grid=True):
+    """
+    Left: behavioral mode map from k-means (same as semantic).
+    Right: spec utilization heatmap — how close the controller comes to
+    violating each safe spec, expressed as % of threshold.
+    """
+    import matplotlib.patches as mpatches
+    from matplotlib.colors import LinearSegmentedColormap
+
+    STYLE = os.path.join(os.path.dirname(__file__), "bak_matplotlib.mlpstyle")
+    if os.path.exists(STYLE):
+        plt.style.use(STYLE)
+
+    res = actions.shape[0]
+    actions_flat = actions.reshape(-1, 6)
+
+    km = fit_kmeans(actions_flat)
+    remap = remap_clusters(km)
+    raw_labels = km.labels_.reshape(res, res)
+    labels = np.vectorize(remap.__getitem__)(raw_labels)
+
+    color_list = [CLUSTER_LABELS[i][1] for i in range(N_CLUSTERS)]
+    color_arr  = np.array([mcolors.to_rgb(c) for c in color_list])
+    rgb = color_arr[labels]
+
+    fig, axes = plt.subplots(1, 2, figsize=(13, 5.5))
+
+    # ── Left: mode map ──────────────────────────────────────────────────────
+    ax = axes[0]
+    ax.imshow(
+        rgb, origin="lower",
+        extent=[z1[0], z1[-1], z2[0], z2[-1]],
+        aspect="equal", interpolation="nearest",
+    )
+    if show_quant_grid:
+        lines = quant_grid_lines((z1[0], z1[-1]), quant_step)
+        for v in lines:
+            ax.axvline(v, color="w", lw=0.4, alpha=0.35)
+            ax.axhline(v, color="w", lw=0.4, alpha=0.35)
+
+    patches = []
+    for sem_idx in range(N_CLUSTERS):
+        name, color = CLUSTER_LABELS[sem_idx]
+        pct = (labels == sem_idx).mean() * 100
+        patches.append(mpatches.Patch(color=color, label=f"{name}  ({pct:.0f}%)"))
+    ax.legend(handles=patches, loc="upper right", fontsize=8, framealpha=0.9,
+              title="Gait phase", title_fontsize=8)
+    ax.set_xlabel("z₁", fontsize=10)
+    ax.set_ylabel("z₂", fontsize=10)
+
+    # ── Right: spec utilization contour fill ─────────────────────────────────
+    ax2 = axes[1]
+
+    per_spec_util = np.zeros((len(SAFE_SPECS), res, res))
+    for j, (dim, thr, _, _) in enumerate(SAFE_SPECS):
+        per_spec_util[j] = actions[:, :, dim] / thr
+
+    max_util = np.clip(per_spec_util.max(axis=0), 0, None) * 100  # percentage, floor at 0
+
+    safe_cmap = LinearSegmentedColormap.from_list(
+        "safe_margin",
+        [(0.0, "#E8F5E9"), (0.25, "#66BB6A"), (0.5, "#FDD835"),
+         (0.75, "#FF8F00"), (1.0, "#C62828")],
+    )
+
+    Z1, Z2 = np.meshgrid(z1, z2)
+    vmax = 60.0
+    cf = ax2.contourf(Z1, Z2, max_util, levels=np.linspace(0, vmax, 13),
+                      cmap=safe_cmap, vmin=0, vmax=vmax)
+    cbar = fig.colorbar(cf, ax=ax2, fraction=0.046, pad=0.04)
+    cbar.set_label("Spec utilization (%)", fontsize=9)
+    cbar.set_ticks([0, 10, 20, 30, 40, 50, 60])
+
+    cs = ax2.contour(Z1, Z2, max_util, levels=[20, 40],
+                     colors="k", linewidths=0.8, alpha=0.5)
+    ax2.clabel(cs, inline=True, fontsize=8, fmt="%d%%")
+
+    # Overlay gait-mode boundaries from left panel as thin contour
+    from scipy.ndimage import gaussian_filter
+    labels_smooth = gaussian_filter(labels.astype(float), sigma=3)
+    ax2.contour(Z1, Z2, labels_smooth,
+                levels=np.arange(0.5, N_CLUSTERS, 1.0),
+                colors="k", linewidths=1.0, alpha=0.3, linestyles="--")
+
+    # Mark peak utilization
+    peak_idx = np.unravel_index(max_util.argmax(), max_util.shape)
+    peak_z1 = z1[peak_idx[1]]
+    peak_z2 = z2[peak_idx[0]]
+    peak_val = max_util[peak_idx]
+    ax2.plot(peak_z1, peak_z2, "*", color="white", markersize=14,
+             markeredgecolor="k", markeredgewidth=1.2, zorder=5)
+    ax2.annotate(
+        f"max {peak_val:.0f}%\n(violation = 100%)",
+        xy=(peak_z1, peak_z2),
+        xytext=(peak_z1 + 0.30, peak_z2 + 0.25),
+        fontsize=8, fontweight="bold",
+        arrowprops=dict(arrowstyle="->", color="k", lw=1.2),
+        bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="k", alpha=0.9),
+        zorder=6,
+    )
+
+    if show_quant_grid:
+        lines = quant_grid_lines((z1[0], z1[-1]), quant_step)
+        for v in lines:
+            ax2.axvline(v, color="k", lw=0.3, alpha=0.12)
+            ax2.axhline(v, color="k", lw=0.3, alpha=0.12)
+
+    ax2.set_xlabel("z₁", fontsize=10)
+    ax2.set_ylabel("z₂", fontsize=10)
+
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Saved: {out_path}")
+
+    print("\nSpec utilization stats:")
+    for j, (dim, thr, lbl, _) in enumerate(SAFE_SPECS):
+        u = per_spec_util[j]
+        col = actions[:, :, dim]
+        print(f"  {lbl}: max Y={col.max():.3f}, threshold={thr:.4f}, "
+              f"utilization={u.max()*100:.1f}%")
+
+
+# ── Figure 4: quantized cell grid ─────────────────────────────────────────────
+
+def plot_cell_grid(ctrl, quant_step, z_range, out_path):
+    """
+    Left: continuous gait-mode map (k-means on dense grid).
+    Right: the actual 18×18 quantized cells, each colored by the most-binding
+           spec utilization at that cell center.  Threshold = 100% (violation).
+    """
+    import matplotlib.patches as mpatches
+    from matplotlib.colors import LinearSegmentedColormap
+    import matplotlib.ticker as ticker
+
+    STYLE = os.path.join(os.path.dirname(__file__), "bak_matplotlib.mlpstyle")
+    if os.path.exists(STYLE):
+        plt.style.use(STYLE)
+
+    # ── Dense grid for left panel ────────────────────────────────────────────
+    z1, z2, actions = eval_grid(ctrl, RESOLUTION, z_range)
+    res = actions.shape[0]
+    actions_flat = actions.reshape(-1, 6)
+
+    km = fit_kmeans(actions_flat)
+    remap = remap_clusters(km)
+    raw_labels = km.labels_.reshape(res, res)
+    labels = np.vectorize(remap.__getitem__)(raw_labels)
+    color_list = [CLUSTER_LABELS[i][1] for i in range(N_CLUSTERS)]
+    color_arr  = np.array([mcolors.to_rgb(c) for c in color_list])
+    rgb = color_arr[labels]
+
+    # ── Cell centers for right panel ─────────────────────────────────────────
+    lo, hi = z_range
+    # cell centers: first = lo + q/2, step = q
+    half = quant_step / 2.0
+    c_vals = np.arange(lo + half, hi, quant_step, dtype=np.float32)
+    n_cells = len(c_vals)
+
+    C1, C2 = np.meshgrid(c_vals, c_vals)          # (n, n)
+    flat_cells = np.stack([C1.ravel(), C2.ravel()], axis=1)
+
+    with torch.no_grad():
+        cell_actions = ctrl(torch.from_numpy(flat_cells)).numpy()  # (n², 6)
+    cell_actions = cell_actions.reshape(n_cells, n_cells, 6)
+
+    # Utilization per cell: max(Y_i / threshold_i) across all specs, clamped ≥ 0
+    util = np.zeros((n_cells, n_cells))
+    for dim, thr, _, _ in SAFE_SPECS:
+        util = np.maximum(util, cell_actions[:, :, dim] / thr)
+    util_pct = util * 100  # percentage
+
+    fig, axes = plt.subplots(1, 2, figsize=(13, 5.5))
+
+    # ── Left: gait mode map ──────────────────────────────────────────────────
+    ax = axes[0]
+    ax.imshow(rgb, origin="lower",
+              extent=[z1[0], z1[-1], z2[0], z2[-1]],
+              aspect="equal", interpolation="nearest")
+    lines = quant_grid_lines((z1[0], z1[-1]), quant_step)
+    for v in lines:
+        ax.axvline(v, color="w", lw=0.4, alpha=0.35)
+        ax.axhline(v, color="w", lw=0.4, alpha=0.35)
+
+    patches = [
+        mpatches.Patch(color=CLUSTER_LABELS[i][1],
+                       label=f"{CLUSTER_LABELS[i][0]}  "
+                             f"({(labels == i).mean()*100:.0f}%)")
+        for i in range(N_CLUSTERS)
+    ]
+    ax.legend(handles=patches, loc="upper right", fontsize=8, framealpha=0.9,
+              title="Gait phase", title_fontsize=8)
+    ax.set_xlabel("z₁", fontsize=10)
+    ax.set_ylabel("z₂", fontsize=10)
+
+    # ── Right: cell grid ─────────────────────────────────────────────────────
+    ax2 = axes[1]
+
+    # Traffic-light colormap: white (safe) → green → yellow → orange → red (violation)
+    safe_cmap = LinearSegmentedColormap.from_list(
+        "cell_safe",
+        [(0.0, "#FFFFFF"), (0.3, "#43A047"), (0.55, "#FDD835"),
+         (0.75, "#FB8C00"), (1.0, "#C62828")],
+    )
+
+    im = ax2.imshow(
+        util_pct, origin="lower", aspect="equal",
+        extent=[lo, hi, lo, hi],
+        cmap=safe_cmap, vmin=0, vmax=100,
+        interpolation="nearest",
+    )
+
+    # Cell boundary lines
+    for v in np.arange(lo, hi + quant_step, quant_step):
+        ax2.axvline(v, color="k", lw=0.5, alpha=0.35)
+        ax2.axhline(v, color="k", lw=0.5, alpha=0.35)
+
+    # Annotate max cell
+    peak_idx = np.unravel_index(util_pct.argmax(), util_pct.shape)
+    peak_c1 = c_vals[peak_idx[1]]
+    peak_c2 = c_vals[peak_idx[0]]
+    peak_val = util_pct[peak_idx]
+    ax2.plot(peak_c1, peak_c2, "*", color="white", markersize=13,
+             markeredgecolor="k", markeredgewidth=1.2, zorder=5)
+    text_x = peak_c1 - 0.55 if peak_c1 > 1.0 else peak_c1 + 0.20
+    ax2.annotate(
+        f"max {peak_val:.0f}%",
+        xy=(peak_c1, peak_c2),
+        xytext=(text_x, peak_c2 + 0.22),
+        fontsize=9, fontweight="bold",
+        arrowprops=dict(arrowstyle="->", color="k", lw=1.2),
+        bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="k", alpha=0.92),
+        zorder=6,
+    )
+
+    cbar = fig.colorbar(im, ax=ax2, fraction=0.046, pad=0.04)
+    cbar.set_label("Spec utilization (%)", fontsize=9)
+    cbar.set_ticks([0, 25, 50, 75, 100])
+    cbar.set_ticklabels(["0", "25", "50", "75", "100\n(violation)"])
+
+    ax2.set_xlabel("z₁", fontsize=10)
+    ax2.set_ylabel("z₂", fontsize=10)
+    ax2.set_xlim(lo, hi - quant_step)
+    ax2.set_ylim(lo, hi - quant_step)
+    ax2.text(0.02, 0.97, f"{n_cells}×{n_cells} = {n_cells**2} cells verified",
+             transform=ax2.transAxes, fontsize=8, va="top",
+             bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", alpha=0.85))
+
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Saved: {out_path}")
+    print(f"Cell grid: {n_cells}×{n_cells} = {n_cells**2} cells, "
+          f"max utilization = {util_pct.max():.1f}%")
+
+
 # ── Main ───────────────────────────────────────────────────────────────────────
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--mode",       default="actions", choices=["actions", "semantic", "both"])
+    ap.add_argument("--mode",       default="actions",
+                    choices=["actions", "semantic", "specoverlay", "cells", "both"])
     ap.add_argument("--run_dir",    default=RUN_DIR)
     ap.add_argument("--out_dir",    default=OUT_DIR)
     ap.add_argument("--resolution", type=int, default=RESOLUTION)
@@ -342,6 +610,14 @@ def main():
     if args.mode in ("semantic", "both"):
         out = os.path.join(args.out_dir, "latent2_semantic.png")
         plot_semantic_heatmap(z1, z2, actions, args.quant_step, out, traj_z, show_grid)
+
+    if args.mode == "specoverlay":
+        out = os.path.join(args.out_dir, "latent2_spec_overlay.pdf")
+        plot_spec_overlay(z1, z2, actions, args.quant_step, out, show_grid)
+
+    if args.mode == "cells":
+        out = os.path.join(args.out_dir, "latent2_cells.pdf")
+        plot_cell_grid(ctrl, args.quant_step, tuple(args.z_range), out)
 
 
 if __name__ == "__main__":

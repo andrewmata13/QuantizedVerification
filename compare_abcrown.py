@@ -55,7 +55,7 @@ NETWORKS = {
     "Hopper-v5": [
         {
             "label":   "baseline",
-            "run_dir": "sac_sweep_runs/Hopper-v5/baseline/seed0",
+            "run_dir": "sac_sweep_runs/Hopper-v5/baseline512/seed0",
             "is_baseline": True,
         },
         {
@@ -89,6 +89,19 @@ OUR_RESULTS = {
     ("HalfCheetah-v4", "latent3", "spec_2"): ("safe", 1.680),
     ("HalfCheetah-v4", "latent3", "spec_3"): ("safe", 1.570),
     ("HalfCheetah-v4", "latent3", "spec_4"): ("safe", 1.800),
+    # HalfCheetah-v4 specs 5-8 (p32/p68)
+    ("HalfCheetah-v4", "latent1", "spec_5"): ("safe", 1.564),
+    ("HalfCheetah-v4", "latent1", "spec_6"): ("safe", 1.602),
+    ("HalfCheetah-v4", "latent1", "spec_7"): ("safe", 1.567),
+    ("HalfCheetah-v4", "latent1", "spec_8"): ("safe", 1.405),
+    ("HalfCheetah-v4", "latent2", "spec_5"): ("safe", 1.618),
+    ("HalfCheetah-v4", "latent2", "spec_6"): ("safe", 1.614),
+    ("HalfCheetah-v4", "latent2", "spec_7"): ("safe", 1.641),
+    ("HalfCheetah-v4", "latent2", "spec_8"): ("safe", 1.629),
+    ("HalfCheetah-v4", "latent3", "spec_5"): ("safe", 13.377),
+    ("HalfCheetah-v4", "latent3", "spec_6"): ("safe", 13.253),
+    ("HalfCheetah-v4", "latent3", "spec_7"): ("safe", 13.249),
+    ("HalfCheetah-v4", "latent3", "spec_8"): ("safe", 13.632),
     # Hopper-v5 latent3 (quant_step=0.1, 6,300 cells)
     ("Hopper-v5", "latent3", "spec_1"): ("safe", 1.681),
     ("Hopper-v5", "latent3", "spec_2"): ("safe", 1.326),
@@ -109,6 +122,16 @@ OUR_RESULTS = {
     ("Hopper-v5", "latent4", "spec_6"): ("safe", 3.741),
     ("Hopper-v5", "latent4", "spec_7"): ("safe", 3.655),
     ("Hopper-v5", "latent4", "spec_8"): ("safe", 4.657),
+    # HalfCheetah specs 9-12 (unsafe, threshold=cell_max-0.05, latent3 p20/p80)
+    ("HalfCheetah-v4", "latent3", "spec_9"):  ("unsafe", 1.910),
+    ("HalfCheetah-v4", "latent3", "spec_10"): ("unsafe", 1.929),
+    ("HalfCheetah-v4", "latent3", "spec_11"): ("unsafe", 1.757),
+    ("HalfCheetah-v4", "latent3", "spec_12"): ("unsafe", 1.799),
+    # Hopper specs 9-12 (unsafe, threshold=cell_max-0.05, latent3 p20/p80)
+    ("Hopper-v5", "latent3", "spec_9"):  ("unsafe", 1.681),
+    ("Hopper-v5", "latent3", "spec_10"): ("unsafe", 1.216),
+    ("Hopper-v5", "latent3", "spec_11"): ("unsafe", 1.320),
+    ("Hopper-v5", "latent3", "spec_12"): ("unsafe", 1.412),
 }
 
 
@@ -121,17 +144,10 @@ def find_specs(env, spec_type, label):
 
     specs = []
     if spec_type in ("safety", "all"):
-        for i in range(1, 9):
+        for i in range(1, 13):
             p = os.path.join(spec_dir, f"spec_{i}.vnnlib")
             if os.path.exists(p):
                 specs.append((f"spec_{i}", p))
-
-    if spec_type in ("traj", "all"):
-        for i in range(1, 6):
-            for kind in ("unsafe", "safe"):
-                p = os.path.join(spec_dir, f"traj_spec_{i}_{label}_{kind}.vnnlib")
-                if os.path.exists(p):
-                    specs.append((f"traj_{i}_{kind}", p))
 
     return specs
 
@@ -188,7 +204,6 @@ def run_abcrown(onnx_path, vnnlib_path, timeout, batch_size=1024,
         .set(general__device=device)
         .set(solver__batch_size=batch_size)
         .set(bab__timeout=timeout)
-        .set(attack__pgd_order="skip")   # skip PGD pre-attack for fair timing
     )
     if input_split:
         builder.set(bab__branching__input_split__enable=True)
