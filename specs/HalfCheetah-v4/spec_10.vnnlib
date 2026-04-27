@@ -1,10 +1,9 @@
-; HalfCheetah-v4 UNSAFE spec 2 — latent3
+; HalfCheetah-v4 UNSAFE spec 10 — latent3
 ; Input box: same p20/p80 box as safe spec_1.
-; Violation: Y_1 >= 5.973238  (cell_max=6.023238, eps=0.05)
-;   1 violating cell(s) out of 164,640 total.
-; UNSAFE by construction — counterexample exists at cell [0.925000011920929, 1.524999976158142, 2.4749999046325684].
-; Designed to be hard for PGD: violating inputs form a thin polytope
-; in the 17D observation space.
+; Violation: Y_3 >= 3.772641  (cell_max=3.872641, eps=0.10)
+;   3 LP-reachable violating cell(s) out of 164,640 total.
+; All 3 networks confirmed unsafe: quantized (cell enumeration),
+;   continuous latent3 (PGD max=3.8339), baseline (PGD max=4.6844).
 
 (declare-const X_0  Real)
 (declare-const X_1  Real)
@@ -67,5 +66,5 @@
 (assert (<= X_16 -0.2209))
 
 (assert (or
-    (and (>= Y_1 +5.973238))
+    (and (>= Y_3 +3.772641))
 ))

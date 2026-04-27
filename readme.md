@@ -268,7 +268,7 @@ OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python verify_policy.py \
 
 **Specs 5–8** use a narrower p32/p68 box so that α-β CROWN can terminate (not just timeout), enabling a direct timing comparison. Thresholds set via exhaustive cell enumeration.
 
-**Specs 9–12** are provably unsafe specifications designed to stress-test falsification. Thresholds set at cell_max − 0.05 (latent3), guaranteeing a violation exists but hidden in a thin polytope preimage that PGD struggles to find.
+**Specs 9–10** are provably unsafe specifications confirmed unsafe for all three networks (baseline continuous, bottleneck continuous, and quantized bottleneck). Thresholds set below cell_max so that violations are hidden in thin polytope preimages that PGD struggles to find.
 
 | Spec | Box | Output checked | Threshold |
 |---|---|---|---|
@@ -280,29 +280,25 @@ OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python verify_policy.py \
 | spec_6 | p32/p68 | Y_3 (front hip) ≥ 7.65 | upper saturation |
 | spec_7 | p32/p68 | Y_5 (front ankle) ≥ 4.62 | upper saturation |
 | spec_8 | p32/p68 | Y_1 (back knee) ≥ 3.32 | upper saturation |
-| spec_9 | p20/p80 | Y_0 (back hip) ≥ 4.90 | unsafe witness (1/164,640 cells) |
-| spec_10 | p20/p80 | Y_1 (back knee) ≥ 5.97 | unsafe witness (1/164,640 cells) |
-| spec_11 | p20/p80 | Y_2 (back ankle) ≥ 4.00 | unsafe witness (24/164,640 cells) |
-| spec_12 | p20/p80 | Y_3 (front hip) ≥ 3.82 | unsafe witness (3/164,640 cells) |
+| spec_9 | p20/p80 | Y_0 (back hip) ≥ 4.90 | unsafe (1 reachable cell) |
+| spec_10 | p20/p80 | Y_3 (front hip) ≥ 3.77 | unsafe (3 reachable cells) |
 
 ### HalfCheetah-v4 Verification Results
 
-For bottleneck controllers, α-β CROWN verifies the full concatenated network (encoder + controller). "—" = not run; "timeout" = exceeded 1800s; "error" = nnenum OOM/crash. Speedup is relative to α-β CROWN time on the same controller. Specs 1–8 verified SAFE; specs 9–12 verified UNSAFE.
+For bottleneck controllers, α-β CROWN verifies the full concatenated network (encoder + controller). "—" = not run; "timeout" = exceeded 1800s; "error" = nnenum OOM/crash. Speedup is relative to α-β CROWN time on the same controller. nnenum uses `set_control_settings()` (BRANCH_OVERAPPROX + LP contraction). Specs 1–8 verified SAFE; specs 9–10 verified UNSAFE.
 
-| Spec | Box | CROWN baseline (s) | CROWN latent3 (s) | nnenum baseline (s) | nnenum latent3 (s) | Ours latent3 (s) | Speedup |
+| Spec | Box | CROWN baseline (s) | CROWN latent3 (s) | nnenum baseline (s) | nnenum latent3 (s) | Ours latent3 (s) | Speedup vs best |
 |---|---|---|---|---|---|---|---|
-| spec_1 | p20/p80 | timeout | timeout | error (355) | error (925) | 1.65 | **>1000×** |
-| spec_2 | p20/p80 | timeout | timeout | error (1217) | timeout | 1.65 | **>1000×** |
-| spec_3 | p20/p80 | timeout | timeout | timeout | error (1179) | 1.75 | **>1000×** |
-| spec_4 | p20/p80 | timeout | timeout | error (1042) | error (1166) | 1.83 | **>1000×** |
-| spec_5 | p32/p68 | 234.4 | 44.7 | error (282) | safe (14.1) | 13.4 | **3.3×** |
-| spec_6 | p32/p68 | 93.1 | 150.2 | error (86) | safe (15.1) | 13.3 | **11.3×** |
-| spec_7 | p32/p68 | timeout | 119.1 | timeout | safe (15.6) | 13.2 | **9.0×** |
-| spec_8 | p32/p68 | timeout | timeout | timeout | safe (16.5) | 13.6 | **>132×** |
-| spec_9 | p20/p80 | unsafe (0.16) | unsafe (0.22) | timeout | unsafe (220) | 1.91 | — |
-| spec_10 | p20/p80 | timeout | timeout | error (1281) | — | 1.93 | **>933×** |
-| spec_11 | p20/p80 | unsafe (0.01) | timeout | unsafe (183) | — | 1.76 | **>1023×** |
-| spec_12 | p20/p80 | unsafe (0.02) | unsafe (0.03) | error (457) | — | 1.80 | — |
+| spec_1 | p20/p80 | timeout | timeout | error | safe (1142) | 4.57 | **250×** |
+| spec_2 | p20/p80 | timeout | timeout | error | safe (1135) | 5.33 | **213×** |
+| spec_3 | p20/p80 | timeout | timeout | timeout | safe (1110) | 5.51 | **201×** |
+| spec_4 | p20/p80 | timeout | timeout | error | safe (1126) | 5.34 | **211×** |
+| spec_5 | p32/p68 | 234.4 | 44.7 | error | safe (15.4) | 3.24 | **4.8×** |
+| spec_6 | p32/p68 | 93.1 | 150.2 | error | safe (15.4) | 3.18 | **4.8×** |
+| spec_7 | p32/p68 | timeout | 119.1 | timeout | safe (15.4) | 3.28 | **4.7×** |
+| spec_8 | p32/p68 | timeout | timeout | timeout | safe (16.0) | 3.48 | **4.6×** |
+| spec_9 | p20/p80 | unsafe (0.16) | unsafe (0.22) | error | unsafe (148) | 4.63 | — |
+| spec_10 | p20/p80 | unsafe (0.50) | unsafe (0.06) | error | unsafe (477) | 4.63 | — |
 
 ### Why the speedup
 
@@ -329,7 +325,7 @@ For bottleneck controllers, α-β CROWN verifies the full concatenated network (
 
 **Specs 5–8** use a p32/p68 box for tractable CROWN comparison.
 
-**Specs 9–12** are provably unsafe specifications (latent3, p20/p80 box). Specs 9–11 target individual action dimensions; spec_12 is a combined disjunction (any Y_i exceeds its per-dim threshold).
+**Specs 9–10** are provably unsafe specifications confirmed unsafe for all three networks (baseline continuous, bottleneck continuous, and quantized bottleneck). Thresholds chosen so PGD confirms violations on all networks.
 
 | Spec | Box | Output checked | Threshold |
 |---|---|---|---|
@@ -341,10 +337,8 @@ For bottleneck controllers, α-β CROWN verifies the full concatenated network (
 | spec_6 | p32/p68 | Y_1 (leg) ≥ 8.31 | upper saturation |
 | spec_7 | p32/p68 | Y_2 (foot) ≥ 11.74 | upper saturation |
 | spec_8 | p32/p68 | any Y_i ≥ 11.74 | upper saturation |
-| spec_9 | p20/p80 | Y_0 (thigh) ≥ 8.60 | unsafe witness (1/6,300 cells) |
-| spec_10 | p20/p80 | Y_1 (leg) ≥ 7.40 | unsafe witness (2/6,300 cells) |
-| spec_11 | p20/p80 | Y_2 (foot) ≥ 7.73 | unsafe witness (1/6,300 cells) |
-| spec_12 | p20/p80 | any Y_i ≥ per-dim threshold | combined disjunction (4 cells) |
+| spec_9 | p20/p80 | Y_0 (thigh) ≥ 3.90 | unsafe (all 3 networks) |
+| spec_10 | p20/p80 | Y_1 (leg) ≥ 6.50 | unsafe (all 3 networks) |
 
 ### Hopper-v5 Quantization Step
 
@@ -355,24 +349,20 @@ For bottleneck controllers, α-β CROWN verifies the full concatenated network (
 
 ### Hopper-v5 Verification Results
 
-For bottleneck controllers, α-β CROWN verifies the full concatenated network. Speedup computed against the α-β CROWN time for the same controller. Specs 1–8 verified SAFE; specs 9–12 verified UNSAFE.
+For bottleneck controllers, α-β CROWN verifies the full concatenated network. Speedup computed against the α-β CROWN time for the same controller. nnenum uses `set_control_settings()`. Specs 1–8 verified SAFE; specs 9–10 verified UNSAFE.
 
-| Spec | Box | CROWN baseline (s) | CROWN latent3 (s) | Ours latent3 (s) | Speedup |
-|---|---|---|---|---|---|
-| spec_1 | p20/p80 | timeout | timeout | 1.68 | **>1071×** |
-| spec_2 | p20/p80 | 613.7 | timeout | 1.33 | **>1353×** |
-| spec_3 | p20/p80 | timeout | timeout | 1.28 | **>1406×** |
-| spec_4 | p20/p80 | timeout | timeout | 1.42 | **>1268×** |
-| spec_5 | p32/p68 | 129.3 | 199.9 | 3.35 | **60×** |
-| spec_6 | p32/p68 | 82.9 | 31.2 | 3.13 | **10×** |
-| spec_7 | p32/p68 | 30.3 | 11.6 | 3.17 | 3.7× |
-| spec_8 | p32/p68 | 42.1 | 24.9 | 2.92 | **8.5×** |
-| spec_9 | p20/p80 | timeout | timeout | 1.68 | **>1071×** |
-| spec_10 | p20/p80 | timeout | timeout | 1.22 | **>1475×** |
-| spec_11 | p20/p80 | unsafe (0.01) | timeout | 1.32 | **>1364×** |
-| spec_12 | p20/p80 | unsafe (0.01) | timeout | 1.41 | **>1277×** |
-
-latent4 spec_5 (CROWN 6.2s, ours 13.3s) is the one case where our method is slower — the spec threshold is trivially far from the network's true maximum so CROWN's initial LP relaxation suffices with no BaB. Our 157K-cell lookup overhead exceeds that. Similarly latent3 spec_7 (CROWN 11.6s vs ours 3.2s) is only a 3.7× improvement for the same reason.
+| Spec | Box | CROWN baseline (s) | CROWN latent3 (s) | nnenum baseline (s) | nnenum latent3 (s) | Ours latent3 (s) | Speedup vs best |
+|---|---|---|---|---|---|---|---|
+| spec_1 | p20/p80 | timeout | timeout | error | error | 3.61 | **>499×** |
+| spec_2 | p20/p80 | 613.7 | timeout | timeout | error | 3.56 | **172×** |
+| spec_3 | p20/p80 | timeout | timeout | timeout | error | 3.74 | **>481×** |
+| spec_4 | p20/p80 | timeout | timeout | error | error | 3.51 | **>513×** |
+| spec_5 | p32/p68 | 129.3 | 199.9 | error | timeout | 3.38 | **38×** |
+| spec_6 | p32/p68 | 82.9 | 31.2 | error | timeout | 3.37 | **9.3×** |
+| spec_7 | p32/p68 | 30.3 | 11.6 | error | timeout | 3.38 | **3.4×** |
+| spec_8 | p32/p68 | 42.1 | 24.9 | error | error | 3.38 | **7.4×** |
+| spec_9 | p20/p80 | unsafe (0.07) | unsafe (0.10) | error | timeout | 3.93 | — |
+| spec_10 | p20/p80 | unsafe (0.08) | unsafe (0.09) | error | timeout | 3.28 | — |
 
 ---
 

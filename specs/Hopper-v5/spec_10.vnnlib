@@ -1,10 +1,6 @@
-; Hopper-v5 UNSAFE spec 2 — latent3
-; Input box: same p20/p80 box as safe spec_1.
-; Violation: Y_1 >= 7.399496  (cell_max=7.449496, eps=0.05)
-;   2 violating cell(s) out of 6,300 total.
-; UNSAFE by construction — counterexample exists at cell [1.649999976158142, 1.25, 0.3499999940395355].
-; Designed to be hard for PGD: violating inputs form a thin polytope
-; in the 11D observation space.
+; Hopper-v5 UNSAFE spec — latent3
+; Violation: Y_1 >= 6.500000
+; Designed to be unsafe for baseline, continuous latent3, and quantized latent3.
 
 (declare-const X_0  Real)
 (declare-const X_1  Real)
@@ -46,5 +42,5 @@
 (assert (<= X_10 +1.6619))
 
 (assert (or
-    (and (>= Y_1 +7.399496))
+    (and (>= Y_1 +6.500000))
 ))
