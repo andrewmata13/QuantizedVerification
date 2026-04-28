@@ -149,26 +149,6 @@ All training scripts support checkpoint/resume: if `checkpoints/` contains `.zip
 
 ---
 
-## Jacobian Analysis — Effective Rank Justification
-
-The choice of latent dimension N is principled via **model order reduction (MOR)**: the policy Jacobian J(x) = ∂f/∂x (f: obs → pre-tanh action) has intrinsic low rank at typical rollout states. The **effective rank** k* = |{k : σ_k/σ_1 > 0.10}| predicts the minimum latent dim needed to recover baseline performance.
-
-```bash
-python figures/jacobian_analysis.py --n_samples 1000 --out figures/jacobian_svd.png
-python figures/mor_analysis.py --n_samples 500 --out figures/mor_analysis.png
-```
-
-| Environment | J shape | Effective rank k* | First N with R(N) ≥ 0.9 |
-|---|---|---|---|
-| HalfCheetah-v4 | 6×17 | 3 | latent3 (~89%) |
-| Hopper-v5 | 3×11 | 3 | latent3 (~95%) |
-
-For HalfCheetah, the action space is 6D but the Jacobian effective rank is 3 — the reachable action manifold under nominal observations is at most 3D. Latent1/2 underfit this structure; latent3 captures it fully. The same prediction holds for Hopper (3-action environment, max Jacobian rank = 3).
-
-![MOR analysis](figures/mor_analysis.png)
-
----
-
 ## Quantization
 
 ### Latent space quantization step
@@ -297,7 +277,7 @@ For bottleneck controllers, α-β CROWN verifies the full concatenated network (
 | spec_6 | p32/p68 | 93.1 | 150.2 | error | safe (15.4) | 3.18 | **4.8×** |
 | spec_7 | p32/p68 | timeout | 119.1 | timeout | safe (15.4) | 3.28 | **4.7×** |
 | spec_8 | p32/p68 | timeout | timeout | timeout | safe (16.0) | 3.48 | **4.6×** |
-| spec_9 | p20/p80 | unsafe (0.16) | unsafe (0.22) | error | unsafe (148) | 4.63 | — |
+| spec_9 | p20/p80 | unsafe (0.16) | unsafe (0.22) | timeout | unsafe (148) | 4.63 | — |
 | spec_10 | p20/p80 | unsafe (0.50) | unsafe (0.06) | error | unsafe (477) | 4.63 | — |
 
 ### Why the speedup
@@ -361,8 +341,8 @@ For bottleneck controllers, α-β CROWN verifies the full concatenated network. 
 | spec_6 | p32/p68 | 82.9 | 31.2 | error | timeout | 3.37 | **9.3×** |
 | spec_7 | p32/p68 | 30.3 | 11.6 | error | timeout | 3.38 | **3.4×** |
 | spec_8 | p32/p68 | 42.1 | 24.9 | error | error | 3.38 | **7.4×** |
-| spec_9 | p20/p80 | unsafe (0.07) | unsafe (0.10) | error | timeout | 3.93 | — |
-| spec_10 | p20/p80 | unsafe (0.08) | unsafe (0.09) | error | timeout | 3.28 | — |
+| spec_9 | p20/p80 | unsafe (0.07) | unsafe (0.10) | timeout | unsafe (762) | 3.93 | — |
+| spec_10 | p20/p80 | unsafe (0.08) | unsafe (0.09) | error | error | 3.28 | — |
 
 ---
 
