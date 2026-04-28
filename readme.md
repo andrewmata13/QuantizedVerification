@@ -161,42 +161,48 @@ The latent space is quantized to a grid with step size `quant_step`. Steps are c
 | HalfCheetah latent2 | 8,705 ± 1644 | 0.1 | 8,659 ± 94 |
 | HalfCheetah latent3 | 13,522 ± 59 | 0.05 | 12,990 ± 159 |
 
-### INT8 weight quantization
+### INT8 Quantization-Aware Training (QAT)
 
-The latent controller can be weight-quantized to INT8 without retraining, and our verification method applies to the quantized model with no additional cost — the encoder enumeration is identical; only the controller lookup changes.
+Naive INT8 weight quantization preserves storage savings but provides no inference speedup (weights are dequantized to float32 for compute). True INT8 inference via ONNX Runtime requires quantizing both weights *and* activations, but this degrades the policy due to the controller's extreme weight outliers (layer 0.2 range: [−61.6, 8.5]) and the compounding nature of control errors over 1000-step episodes.
 
-Quantization uses per-output-channel symmetric INT8 (weights rounded to nearest INT8 value, dequantized to float32 for inference; activations remain float32 throughout):
+**Quantization-aware training (QAT)** solves this by fine-tuning the controller with simulated INT8 rounding (straight-through estimator) in the forward pass. The network learns to be robust to quantization without eliminating weight outliers. 20 epochs of distillation from the float32 model (100K latent vectors from policy rollouts, MSE loss, lr=1e-4) suffice.
 
-```bash
-OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python quantize_and_verify.py
-```
+The QAT model is then exported to ONNX and statically quantized with calibrated activation scales (MinMax calibration on 20K policy rollout latent vectors), enabling native INT8 GEMM via ONNX Runtime.
 
-**Model size (HalfCheetah latent3 controller, 266,752 weight parameters):**
+**Policy performance (50 episodes, HalfCheetah-v4):**
 
-| Format | Storage | Size |
-|---|---|---|
-| float32 | 266,752 × 4 B | 1,046 KB |
-| INT8 | 266,752 × 1 B + 1,030 scales × 4 B | 264.5 KB |
-| Compression | | **3.95×** |
-
-**Policy performance (20 episodes, HalfCheetah-v4):**
-
-| Model | Mean return |
-|---|---|
-| float32 | 13,545 |
-| INT8 (weight-only) | 13,512 |
-
-**Verification results (specs 1–4, `complete=True`):**
-
-| Spec | float32 | INT8 | Action diff (max) |
+| Model | Mean return | Std | Catastrophic (<5K) |
 |---|---|---|---|
-| spec_1 | SAFE | SAFE | — |
-| spec_2 | SAFE | SAFE | — |
-| spec_3 | SAFE | SAFE | — |
-| spec_4 | SAFE | SAFE | — |
-| **All specs** | | | max=3.39, mean=0.64 (pre-tanh) |
+| float32 | 13,538 | 71.9 | 0/50 |
+| Naive INT8 (weight-only) | 12,888 | 3,264 | 3/50 |
+| **QAT INT8** | **13,530** | **65.8** | **0/50** |
 
-This demonstrates a key advantage over tools like alpha-beta CROWN: CROWN verifies the float32 model, and any safety guarantee it produces does not apply to the deployed quantized model. Our method verifies the exact deployed network at no extra cost.
+**Inference time (1M points, ONNX Runtime, all CPU cores):**
+
+| Runtime | Time (ms) | vs PyTorch f32 |
+|---|---|---|
+| PyTorch float32 | 1,142 | baseline |
+| ORT float32 | 1,232 | 0.93× |
+| **ORT QAT static INT8** | **768** | **1.49× faster** |
+
+**Storage:** 3.72× compression (1,047 KB → 282 KB)
+
+**Verification results (HalfCheetah specs 1–10, `complete=True`):**
+
+| Spec | float32 result | float32 time (s) | QAT INT8 result | QAT INT8 time (s) |
+|---|---|---|---|---|
+| spec_1 | SAFE | 4.57 | SAFE | 2.15 |
+| spec_2 | SAFE | 5.33 | SAFE | 2.58 |
+| spec_3 | SAFE | 5.51 | SAFE | 2.39 |
+| spec_4 | SAFE | 5.34 | SAFE | 2.65 |
+| spec_5 | SAFE | 3.24 | SAFE | 2.05 |
+| spec_6 | SAFE | 3.18 | SAFE | 1.93 |
+| spec_7 | SAFE | 3.28 | SAFE | 1.86 |
+| spec_8 | SAFE | 3.48 | SAFE | 1.94 |
+| spec_9 | UNSAFE | 4.63 | UNSAFE | 2.41 |
+| spec_10 | UNSAFE | 4.63 | UNSAFE | 2.37 |
+
+All 10 specs produce identical safe/unsafe verdicts between float32 and QAT INT8 controllers. Verification is faster with the QAT INT8 controller due to the ORT INT8 inference speedup during the quantized cell lookup. This demonstrates a key advantage over tools like alpha-beta CROWN: CROWN verifies the float32 model, and any safety guarantee it produces does not apply to the deployed quantized model. Our method verifies the exact deployed INT8 network — with both faster verification and deployment-fidelity guarantees.
 
 ---
 

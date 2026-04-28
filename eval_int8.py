@@ -9,7 +9,7 @@ os.environ.setdefault("OMP_NUM_THREADS", "1")
 import warnings
 warnings.filterwarnings("ignore")
 
-import torch
+import torch, torch.nn as nn
 import numpy as np
 import gymnasium as gym
 from stable_baselines3.common.vec_env import DummyVecEnv, VecMonitor, VecNormalize
