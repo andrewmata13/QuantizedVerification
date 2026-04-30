@@ -166,17 +166,16 @@ def verify(encoder_onnx, spec_path, latent_ctrl_path,
             axes.append(np.arange(first, last + quant_step * 0.5, quant_step))
         grids = np.meshgrid(*axes, indexing='ij')
         reachable = np.stack([g.ravel() for g in grids], axis=1).astype(np.float32)
+    t_grid = time.time() - t1
 
     # ── Step 4: chunked batched forward pass ─────────────────────────────────
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    t2 = time.time()
+    device = "cpu"
     if isinstance(latent_ctrl_path, str):
         latent_ctrl = torch.load(latent_ctrl_path, weights_only=False).eval()
     else:
-        latent_ctrl = latent_ctrl_path  # pre-loaded model passed directly
-    # torch.ao dynamic-quantized models only run on CPU; torchao models run anywhere
-    is_old_quant = any("quantized" in type(m).__module__ for m in latent_ctrl.modules())
-    ctrl_device = "cpu" if is_old_quant else device
-    latent_ctrl = latent_ctrl.to(ctrl_device)
+        latent_ctrl = latent_ctrl_path
+    latent_ctrl = latent_ctrl.to(device)
     cells = []
     if len(reachable):
         chunk_size = 500_000
@@ -184,12 +183,14 @@ def verify(encoder_onnx, spec_path, latent_ctrl_path,
         with torch.no_grad():
             for i in range(0, len(reachable), chunk_size):
                 z_chunk = torch.tensor(reachable[i:i+chunk_size],
-                                       dtype=torch.float32).to(ctrl_device)
-                actions_parts.append(latent_ctrl(z_chunk).cpu().numpy())
+                                       dtype=torch.float32)
+                actions_parts.append(latent_ctrl(z_chunk).numpy())
         actions_batch = np.concatenate(actions_parts, axis=0)
         cells = list(zip([tuple(r) for r in reachable], actions_batch.tolist()))
+    t_ctrl = time.time() - t2
 
     # ── Step 5: check action violations ──────────────────────────────────────
+    t3 = time.time()
     if len(action_spec_list) == 1:
         mat, rhs = action_spec_list[0]
         checker = Specification(mat, rhs)
@@ -206,13 +207,17 @@ def verify(encoder_onnx, spec_path, latent_ctrl_path,
                 confirmed.append((c, a))
                 break
         violations = confirmed
+    t_check = time.time() - t3
 
-    t_quant = time.time() - t1
+    t_quant = t_grid + t_ctrl + t_check
 
     result = "unsafe" if violations else "safe"
     return dict(
         result=result,
         t_encoder=t_encoder,
+        t_grid=t_grid,
+        t_ctrl=t_ctrl,
+        t_check=t_check,
         t_quant=t_quant,
         t_total=t_encoder + t_quant,
         n_stars=len(enc_stars),
@@ -233,8 +238,8 @@ def print_result(spec_id, spec_path, r):
     print(f"  Result      : {r['result'].upper()}")
     print(f"  Stars       : {r['n_stars']}")
     print(f"  Cells       : {r['n_cells']}")
-    print(f"  Time        : encoder={r['t_encoder']:.3f}s  quant+eval={r['t_quant']:.3f}s  "
-          f"total={r['t_total']:.3f}s")
+    print(f"  Time        : encoder={r['t_encoder']:.3f}s  grid={r['t_grid']:.3f}s  "
+          f"ctrl={r['t_ctrl']:.3f}s  check={r['t_check']:.3f}s  total={r['t_total']:.3f}s")
     if r["violations"]:
         print(f"  Violations  : {len(r['violations'])} cell(s)")
 

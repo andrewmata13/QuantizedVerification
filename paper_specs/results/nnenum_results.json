@@ -1,0 +1,242 @@
+{
+  "HalfCheetah-v4/baseline/spec_1": {
+    "result": "timeout",
+    "time": 600.03,
+    "raw_result_str": "timeout"
+  },
+  "HalfCheetah-v4/baseline/spec_2": {
+    "result": "error",
+    "time": 71.57,
+    "raw_result_str": "error"
+  },
+  "HalfCheetah-v4/baseline/spec_3": {
+    "result": "error",
+    "time": 95.92,
+    "raw_result_str": "error"
+  },
+  "HalfCheetah-v4/baseline/spec_4": {
+    "result": "timeout",
+    "time": 600.03,
+    "raw_result_str": "timeout"
+  },
+  "HalfCheetah-v4/baseline/spec_5": {
+    "result": "error",
+    "time": 83.89,
+    "raw_result_str": "error"
+  },
+  "HalfCheetah-v4/baseline/spec_6": {
+    "result": "unsafe",
+    "time": 0.11,
+    "raw_result_str": "unsafe"
+  },
+  "HalfCheetah-v4/baseline/spec_7": {
+    "result": "timeout",
+    "time": 600.03,
+    "raw_result_str": "timeout"
+  },
+  "HalfCheetah-v4/baseline/spec_8": {
+    "result": "timeout",
+    "time": 600.03,
+    "raw_result_str": "timeout"
+  },
+  "HalfCheetah-v4/baseline/spec_9": {
+    "result": "timeout",
+    "time": 600.03,
+    "raw_result_str": "timeout"
+  },
+  "HalfCheetah-v4/baseline/spec_11": {
+    "result": "timeout",
+    "time": 600.03,
+    "raw_result_str": "timeout"
+  },
+  "HalfCheetah-v4/baseline/spec_12": {
+    "result": "unsafe",
+    "time": 0.15,
+    "raw_result_str": "unsafe"
+  },
+  "HalfCheetah-v4/latent3/spec_1": {
+    "result": "safe",
+    "time": 422.64,
+    "raw_result_str": "safe"
+  },
+  "HalfCheetah-v4/latent3/spec_2": {
+    "result": "safe",
+    "time": 434.25,
+    "raw_result_str": "safe"
+  },
+  "HalfCheetah-v4/latent3/spec_3": {
+    "result": "safe",
+    "time": 429.85,
+    "raw_result_str": "safe"
+  },
+  "HalfCheetah-v4/latent3/spec_4": {
+    "result": "unsafe",
+    "time": 0.11,
+    "raw_result_str": "unsafe"
+  },
+  "HalfCheetah-v4/latent3/spec_5": {
+    "result": "unsafe",
+    "time": 0.12,
+    "raw_result_str": "unsafe"
+  },
+  "HalfCheetah-v4/latent3/spec_6": {
+    "result": "unsafe",
+    "time": 188.25,
+    "raw_result_str": "unsafe"
+  },
+  "HalfCheetah-v4/latent3/spec_7": {
+    "result": "timeout",
+    "time": 600.03,
+    "raw_result_str": "timeout"
+  },
+  "HalfCheetah-v4/latent3/spec_8": {
+    "result": "timeout",
+    "time": 600.03,
+    "raw_result_str": "timeout"
+  },
+  "HalfCheetah-v4/latent3/spec_9": {
+    "result": "timeout",
+    "time": 600.03,
+    "raw_result_str": "timeout"
+  },
+  "HalfCheetah-v4/latent3/spec_11": {
+    "result": "timeout",
+    "time": 600.03,
+    "raw_result_str": "timeout"
+  },
+  "HalfCheetah-v4/latent3/spec_12": {
+    "result": "timeout",
+    "time": 600.03,
+    "raw_result_str": "timeout"
+  },
+  "Hopper-v5/baseline/spec_1": {
+    "result": "timeout",
+    "time": 600.03,
+    "raw_result_str": "timeout"
+  },
+  "Hopper-v5/baseline/spec_2": {
+    "result": "timeout",
+    "time": 600.03,
+    "raw_result_str": "timeout"
+  },
+  "Hopper-v5/baseline/spec_3": {
+    "result": "error",
+    "time": 302.53,
+    "raw_result_str": "error"
+  },
+  "Hopper-v5/baseline/spec_4": {
+    "result": "unsafe",
+    "time": 4.86,
+    "raw_result_str": "unsafe"
+  },
+  "Hopper-v5/baseline/spec_5": {
+    "result": "unsafe",
+    "time": 0.22,
+    "raw_result_str": "unsafe"
+  },
+  "Hopper-v5/baseline/spec_6": {
+    "result": "unsafe",
+    "time": 0.13,
+    "raw_result_str": "unsafe"
+  },
+  "Hopper-v5/baseline/spec_7": {
+    "result": "error",
+    "time": 67.28,
+    "raw_result_str": "error"
+  },
+  "Hopper-v5/baseline/spec_8": {
+    "result": "error",
+    "time": 66.94,
+    "raw_result_str": "error"
+  },
+  "Hopper-v5/baseline/spec_9": {
+    "result": "timeout",
+    "time": 600.03,
+    "raw_result_str": "timeout"
+  },
+  "Hopper-v5/baseline/spec_11": {
+    "result": "unsafe",
+    "time": 0.13,
+    "raw_result_str": "unsafe"
+  },
+  "Hopper-v5/latent3/spec_1": {
+    "result": "timeout",
+    "time": 600.03,
+    "raw_result_str": "timeout"
+  },
+  "Hopper-v5/latent3/spec_2": {
+    "result": "timeout",
+    "time": 600.03,
+    "raw_result_str": "timeout"
+  },
+  "Hopper-v5/latent3/spec_3": {
+    "result": "timeout",
+    "time": 600.03,
+    "raw_result_str": "timeout"
+  },
+  "Hopper-v5/latent3/spec_4": {
+    "result": "unsafe",
+    "time": 21.73,
+    "raw_result_str": "unsafe"
+  },
+  "Hopper-v5/latent3/spec_5": {
+    "result": "timeout",
+    "time": 600.03,
+    "raw_result_str": "timeout"
+  },
+  "Hopper-v5/latent3/spec_6": {
+    "result": "timeout",
+    "time": 600.03,
+    "raw_result_str": "timeout"
+  },
+  "Hopper-v5/latent3/spec_7": {
+    "result": "timeout",
+    "time": 600.03,
+    "raw_result_str": "timeout"
+  },
+  "Hopper-v5/latent3/spec_8": {
+    "result": "timeout",
+    "time": 600.03,
+    "raw_result_str": "timeout"
+  },
+  "Hopper-v5/latent3/spec_9": {
+    "result": "timeout",
+    "time": 600.03,
+    "raw_result_str": "timeout"
+  },
+  "Hopper-v5/latent3/spec_11": {
+    "result": "unsafe",
+    "time": 501.29,
+    "raw_result_str": "unsafe"
+  },
+  "HalfCheetah-v4/baseline/spec_10": {
+    "result": "timeout",
+    "time": 600.03,
+    "raw_result_str": "timeout"
+  },
+  "HalfCheetah-v4/latent3/spec_10": {
+    "result": "unsafe",
+    "time": 184.77,
+    "raw_result_str": "unsafe"
+  },
+  "Hopper-v5/baseline/spec_10": {
+    "result": "unsafe",
+    "time": 0.15,
+    "raw_result_str": "unsafe"
+  },
+  "Hopper-v5/baseline/spec_12": {
+    "result": "unsafe",
+    "time": 0.15,
+    "raw_result_str": "unsafe"
+  },
+  "Hopper-v5/latent3/spec_10": {
+    "result": "unsafe",
+    "time": 126.69,
+    "raw_result_str": "unsafe"
+  },
+  "Hopper-v5/latent3/spec_12": {
+    "result": "timeout",
+    "time": 600.03,
+    "raw_result_str": "timeout"
+  }
+}

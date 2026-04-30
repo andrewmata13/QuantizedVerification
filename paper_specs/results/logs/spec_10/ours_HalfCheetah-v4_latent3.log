@@ -1,0 +1,99 @@
+=== Our method: HalfCheetah-v4 latent3 spec_10 ===
+encoder: sac_sweep_runs/HalfCheetah-v4/latent3/seed0/encoder.onnx
+controller: sac_sweep_runs/HalfCheetah-v4/latent3/seed0/latent_controller_full.pth
+quant_step: 0.05
+spec: paper_specs/HalfCheetah-v4/spec_10.vnnlib
+
+Running in parallel with 32 processes
+(0.0 sec) Q: 0, Sets: 0/1  (0.0%) ETA: - (expected 1 stars)   
+(0.2 sec) Q: 1, Sets: 0/2  (0.0%) ETA: - (expected 1 stars)   
+(0.4 sec) Q: 1, Sets: 0/3  (0.0%) ETA: - (expected 1 stars)   Worker 13: 10 stars (10 exact, 0 approx); Working: 2.4% (Exact: 2.4%, Overapprox: 0.0%); Waiting: 0ms 
+Worker 21: 30 stars (30 exact, 0 approx); Working: 23.1% (Exact: 23.1%, Overapprox: 0.0%); Waiting: 0ms 
+Worker 6: 0 stars (0 exact, 0 approx); Working: 0.0% (Exact: 0.0%, Overapprox: 0.0%); Waiting: 0ms 
+Worker 5: 0 stars (0 exact, 0 approx); Working: 0.0% (Exact: 0.0%, Overapprox: 0.0%); Waiting: 0ms 
+Worker 24: 0 stars (0 exact, 0 approx); Working: 0.0% (Exact: 0.0%, Overapprox: 0.0%); Waiting: 0ms 
+Worker 17: 2 stars (2 exact, 0 approx); Working: 0.9% (Exact: 0.9%, Overapprox: 0.0%); Waiting: 0ms 
+Worker 4: 0 stars (0 exact, 0 approx); Working: 0.0% (Exact: 0.0%, Overapprox: 0.0%); Waiting: 0ms 
+Worker 26: 5 stars (5 exact, 0 approx); Working: 1.9% (Exact: 1.9%, Overapprox: 0.0%); Waiting: 98.116ms 
+Worker 9: 9 stars (9 exact, 0 approx); Working: 2.9% (Exact: 2.9%, Overapprox: 0.0%); Waiting: 0ms 
+Worker 27: 3 stars (3 exact, 0 approx); Working: 1.4% (Exact: 1.4%, Overapprox: 0.0%); Waiting: 0ms 
+Worker 28: 0 stars (0 exact, 0 approx); Working: 0.0% (Exact: 0.0%, Overapprox: 0.0%); Waiting: 0ms 
+Worker 15: 0 stars (0 exact, 0 approx); Working: 0.0% (Exact: 0.0%, Overapprox: 0.0%); Waiting: 0ms 
+Worker 14: 4 stars (4 exact, 0 approx); Working: 1.3% (Exact: 1.3%, Overapprox: 0.0%); Waiting: 0ms 
+Worker 18: 16 stars (16 exact, 0 approx); Working: 5.3% (Exact: 5.3%, Overapprox: 0.0%); Waiting: 0ms 
+Worker 20: 0 stars (0 exact, 0 approx); Working: 0.0% (Exact: 0.0%, Overapprox: 0.0%); Waiting: 0ms 
+Worker 11: 10 stars (10 exact, 0 approx); Working: 3.2% (Exact: 3.2%, Overapprox: 0.0%); Waiting: 0ms 
+Worker 8: 14 stars (14 exact, 0 approx); Working: 3.2% (Exact: 3.2%, Overapprox: 0.0%); Waiting: 0ms 
+Worker 22: 18 stars (18 exact, 0 approx); Working: 15.1% (Exact: 15.1%, Overapprox: 0.0%); Waiting: 90.3ms 
+Worker 25: 6 stars (6 exact, 0 approx); Working: 1.9% (Exact: 1.9%, Overapprox: 0.0%); Waiting: 0ms 
+Worker 10: 7 stars (7 exact, 0 approx); Working: 63.3% (Exact: 63.3%, Overapprox: 0.0%); Waiting: 0ms 
+Worker 3: 10 stars (10 exact, 0 approx); Working: 13.5% (Exact: 13.5%, Overapprox: 0.0%); Waiting: 21.027ms 
+Worker 1: 8 stars (8 exact, 0 approx); Working: 12.6% (Exact: 12.6%, Overapprox: 0.0%); Waiting: 0ms 
+Worker 19: 13 stars (13 exact, 0 approx); Working: 26.2% (Exact: 26.2%, Overapprox: 0.0%); Waiting: 0ms 
+Worker 12: 6 stars (6 exact, 0 approx); Working: 14.1% (Exact: 14.1%, Overapprox: 0.0%); Waiting: 0ms 
+Worker 16: 6 stars (6 exact, 0 approx); Working: 2.0% (Exact: 2.0%, Overapprox: 0.0%); Waiting: 0ms 
+Worker 2: 6 stars (6 exact, 0 approx); Working: 21.5% (Exact: 21.5%, Overapprox: 0.0%); Waiting: 0ms 
+Worker 30: 20 stars (20 exact, 0 approx); Working: 23.3% (Exact: 23.3%, Overapprox: 0.0%); Waiting: 0ms 
+Worker 23: 27 stars (27 exact, 0 approx); Working: 6.3% (Exact: 6.3%, Overapprox: 0.0%); Waiting: 72.659ms 
+Worker 29: 10 stars (10 exact, 0 approx); Working: 16.6% (Exact: 16.6%, Overapprox: 0.0%); Waiting: 78.141ms 
+Worker 31: 31 stars (31 exact, 0 approx); Working: 54.0% (Exact: 54.0%, Overapprox: 0.0%); Waiting: 0ms 
+Worker 7: 12 stars (12 exact, 0 approx); Working: 36.9% (Exact: 36.9%, Overapprox: 0.0%); Waiting: 0ms 
+(0.5 sec) Q: 0, Sets: 0/8  (0.0%) ETA: - (expected 1 stars)   
+(0.6 sec) Q: 0, Sets: 102/112  (31.25%) ETA: 1.3 sec (expected 326 stars)   
+
+Worker 0: 9 stars (9 exact, 0 approx); Working: 78.8% (Exact: 78.8%, Overapprox: 0.0%); Waiting: 99.927ms 
+
+Worker_func (process 0) Time (1 calls): 0.58 sec
+  Get_global_queue Time (13 calls): 0.12 sec (20.8%)
+    Deserialize Time (2 calls): 0.00 sec (0.2%)
+    Other (Get_global_queue): 0.12 sec (99.8%)
+  Update_shared_variables Time (9 calls): 0.00 sec (0.2%)
+  Print_progress Time (5 calls): 0.00 sec (0.1%)
+  Exists_idle_worker Time (13 calls): 0.00 sec (0.0%)
+  Advance Time (13 calls): 0.45 sec (78.0%)
+    Do_first_relu_split Time (13 calls): 0.45 sec (99.7%)
+      Split_enumerate Time (13 calls): 0.45 sec (100.0%)
+        Glp_copy_prob Time (13 calls): 0.00 sec (0.0%)
+        Copy init bm bias Time (13 calls): 0.00 sec (0.1%)
+        Check child feasible Time (13 calls): 0.00 sec (0.2%)
+        Add_dense_row Time (13 calls): 0.00 sec (0.1%)
+        Prefilter_split_relu Time (13 calls): 0.45 sec (99.5%)
+          Contract_zonotope_lp Time (13 calls): 0.01 sec (1.6%)
+          Witness_lp Time (26 calls): 0.00 sec (0.2%)
+          Recompute_bounds Time (16 calls): 0.44 sec (98.0%)
+            Zono.update_output_bounds Time (16 calls): 0.00 sec (0.1%)
+            Update_bounds_lp_parallel Time (8 calls): 0.44 sec (99.5%)
+              Serialize Time (8 calls): 0.00 sec (0.1%)
+              Deserialize Time (8 calls): 0.00 sec (0.2%)
+              Other (Update_bounds_lp_parallel): 0.44 sec (99.7%)
+            Sort_splits Time (16 calls): 0.00 sec (0.0%)
+            Update_bounds_lp Time (8 calls): 0.00 sec (0.1%)
+            Other (Recompute_bounds): 0.00 sec (0.2%)
+          Assign_zeros Time (16 calls): 0.00 sec (0.0%)
+          Other (Prefilter_split_relu): 0.00 sec (0.1%)
+        Other (Split_enumerate): 0.00 sec (0.1%)
+      Other (Do_first_relu_split): 0.00 sec (0.0%)
+    Starstate.apply_linear_layer Time (16 calls): 0.00 sec (0.1%)
+    Recompute_bounds Time (8 calls): 0.00 sec (0.2%)
+    Assign_zeros Time (8 calls): 0.00 sec (0.0%)
+    Other (Advance): 0.00 sec (0.1%)
+  Finished_star Time (9 calls): 0.00 sec (0.8%)
+  Post_loop Time (1 calls): 0.00 sec (0.0%)
+  Other (Worker_func (process 0)): 0.00 sec (0.1%)
+
+
+Total Stars: 292 (292 exact, 0 approx)
+Runtime: 1.0 sec
+Completed work frac: 1.0
+Num Stars Copied Between Processes: 31
+Num Lps During Enumeration: 5881
+Total Num Lps: 5881
+
+Result: network is SAFE
+Enumerate_network Time (1 calls): 1.12 sec
+  From_init_box Time (1 calls): 0.00 sec (0.0%)
+  Propagate_up_to_split Time (1 calls): 0.00 sec (0.0%)
+  Push_init Time (1 calls): 0.00 sec (0.0%)
+  Run workers Time (1 calls): 1.00 sec (89.1%)
+  Deserialize result stars Time (1 calls): 0.04 sec (3.4%)
+  Other (Enumerate_network): 0.08 sec (7.5%)

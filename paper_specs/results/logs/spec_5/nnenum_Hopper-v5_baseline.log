@@ -1,0 +1,24 @@
+=== nnenum (control): Hopper-v5 baseline spec_5 ===
+onnx: sac_sweep_runs/Hopper-v5/baseline512/seed0/full_network.onnx
+spec: paper_specs/Hopper-v5/spec_5.vnnlib
+timeout: 600
+
+Running in parallel with 32 processes
+(0.0 sec) Q: 0, Sets: 0/1  (0.0%) ETA: - (expected 1 stars)   
+(0.1 sec) Q: 7, Sets: 0/13  (0.0%) ETA: - (expected 1 stars)   
+
+
+
+Pre-overapproximation simulation found a confirmed counterexample.
+
+Unsafe Base Branch: +++-++++++++++++++++ (Mode: 0)
+
+Total Stars: 5 (1 exact, 4 approx)
+Runtime: 0.2 sec
+Completed work frac: 0.000125885009765625
+Num Stars Copied Between Processes: 44
+Num Lps During Enumeration: 25
+Total Num Lps: 25
+
+Result: network is UNSAFE with confirmed counterexample in result.cinput and result.coutput
+Output: [0.09997855126857758, 3.835644006729126, -2.2899880409240723]

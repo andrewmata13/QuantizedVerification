@@ -1,0 +1,21 @@
+{
+  "n_points": 1000000,
+  "memory": {
+    "encoder_bytes": 1133,
+    "f32_controller_bytes": 1071862,
+    "int8_controller_bytes": 274382,
+    "f32_total_bytes": 1072995,
+    "int8_total_bytes": 275515,
+    "size_reduction": 3.89
+  },
+  "throughput_ms": {
+    "encoder": 19.4,
+    "rounding": 3.2,
+    "controller_f32": 4517.9,
+    "controller_int8": 1944.7,
+    "controller_speedup": 2.32,
+    "total_f32": 4540.5,
+    "total_int8": 1967.3,
+    "total_speedup": 2.31
+  }
+}

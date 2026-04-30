@@ -191,18 +191,18 @@ The QAT model is then exported to ONNX and statically quantized with calibrated 
 
 | Spec | float32 result | float32 time (s) | QAT INT8 result | QAT INT8 time (s) |
 |---|---|---|---|---|
-| spec_1 | SAFE | 1.81 | SAFE | 1.93 |
-| spec_2 | SAFE | 1.76 | SAFE | 2.37 |
-| spec_3 | SAFE | 1.68 | SAFE | 2.46 |
-| spec_4 | SAFE | 1.64 | SAFE | 2.52 |
-| spec_5 | SAFE | 1.14 | SAFE | 2.07 |
-| spec_6 | SAFE | 1.08 | SAFE | 2.07 |
-| spec_7 | SAFE | 1.22 | SAFE | 1.83 |
-| spec_8 | SAFE | 1.21 | SAFE | 2.02 |
-| spec_9 | UNSAFE | 1.79 | UNSAFE | 2.36 |
-| spec_10 | UNSAFE | 1.80 | UNSAFE | 2.39 |
+| spec_1 | SAFE | 2.27 | SAFE | 1.72 |
+| spec_2 | SAFE | 2.38 | SAFE | 2.15 |
+| spec_3 | SAFE | 2.38 | SAFE | 2.33 |
+| spec_4 | SAFE | 2.26 | SAFE | 2.43 |
+| spec_5 | SAFE | 1.14 | SAFE | 1.76 |
+| spec_6 | SAFE | 1.03 | SAFE | 1.58 |
+| spec_7 | SAFE | 1.05 | SAFE | 1.69 |
+| spec_8 | SAFE | 1.05 | SAFE | 1.59 |
+| spec_9 | UNSAFE | 2.36 | UNSAFE | 2.21 |
+| spec_10 | UNSAFE | 2.35 | UNSAFE | 2.26 |
 
-All 10 specs produce identical safe/unsafe verdicts between float32 and QAT INT8 controllers. Verification times are comparable because the encoder enumeration dominates (~75–97% of total time); the controller lookup contributes only 8–14% even on the larger p20/p80 specs. This demonstrates a key advantage over tools like alpha-beta CROWN: CROWN verifies the float32 model, and any safety guarantee it produces does not apply to the deployed quantized model. Our method verifies the exact deployed INT8 network with deployment-fidelity guarantees.
+All 10 specs produce identical safe/unsafe verdicts between float32 and QAT INT8 controllers. Verification times are comparable — the INT8 controller forward pass is ~2× faster on CPU (ORT INT8 kernels), but encoder enumeration still dominates. For the larger p20/p80 specs, the controller accounts for ~50% of f32 time but only ~30% with INT8, making INT8 verification slightly faster overall. This demonstrates a key advantage over tools like alpha-beta CROWN: CROWN verifies the float32 model, and any safety guarantee it produces does not apply to the deployed quantized model. Our method verifies the exact deployed INT8 network with deployment-fidelity guarantees.
 
 ---
 
@@ -275,28 +275,28 @@ For bottleneck controllers, α-β CROWN verifies the full concatenated network (
 
 | Spec | Box | CROWN baseline (s) | CROWN latent3 (s) | nnenum baseline (s) | nnenum latent3 (s) | Ours latent3 (s) | Speedup vs best |
 |---|---|---|---|---|---|---|---|
-| spec_1 | p20/p80 | timeout | timeout | error | safe (1142) | 1.81 | **631×** |
-| spec_2 | p20/p80 | timeout | timeout | error | safe (1135) | 1.76 | **645×** |
-| spec_3 | p20/p80 | timeout | timeout | timeout | safe (1110) | 1.68 | **661×** |
-| spec_4 | p20/p80 | timeout | timeout | error | safe (1126) | 1.64 | **687×** |
+| spec_1 | p20/p80 | timeout | timeout | error | safe (1142) | 2.27 | **503×** |
+| spec_2 | p20/p80 | timeout | timeout | error | safe (1135) | 2.38 | **477×** |
+| spec_3 | p20/p80 | timeout | timeout | timeout | safe (1110) | 2.38 | **466×** |
+| spec_4 | p20/p80 | timeout | timeout | error | safe (1126) | 2.26 | **498×** |
 | spec_5 | p32/p68 | 234.4 | 44.7 | error | safe (15.4) | 1.14 | **14×** |
-| spec_6 | p32/p68 | 93.1 | 150.2 | error | safe (15.4) | 1.08 | **14×** |
-| spec_7 | p32/p68 | timeout | 119.1 | timeout | safe (15.4) | 1.22 | **13×** |
-| spec_8 | p32/p68 | timeout | timeout | timeout | safe (16.0) | 1.21 | **13×** |
-| spec_9 | p20/p80 | unsafe (0.16) | unsafe (0.22) | timeout | unsafe (148) | 1.79 | — |
-| spec_10 | p20/p80 | unsafe (0.50) | unsafe (0.06) | error | unsafe (477) | 1.80 | — |
+| spec_6 | p32/p68 | 93.1 | 150.2 | error | safe (15.4) | 1.03 | **15×** |
+| spec_7 | p32/p68 | timeout | 119.1 | timeout | safe (15.4) | 1.05 | **15×** |
+| spec_8 | p32/p68 | timeout | timeout | timeout | safe (16.0) | 1.05 | **15×** |
+| spec_9 | p20/p80 | unsafe (0.16) | unsafe (0.22) | timeout | unsafe (148) | 2.36 | — |
+| spec_10 | p20/p80 | unsafe (0.50) | unsafe (0.06) | error | unsafe (477) | 2.35 | — |
 
 **Encoder reachability (our method):**
 
-| Input box | Stars | Cells | nnenum (s) | Grid + ctrl (s) | Spec check (s) |
-|---|---|---|---|---|---|
-| p20/p80 | 113 | 164,640 | 1.12 (75%) | 0.22 (14%) | 0.38 (11%) |
-| p32/p68 | 14 | 6,732 | 1.13 (97%) | 0.01 (1%) | 0.02 (2%) |
+| Input box | Stars | Cells | nnenum (s) | Grid (s) | Ctrl (s) | Spec check (s) | Total (s) |
+|---|---|---|---|---|---|---|---|
+| p20/p80 | 113 | 164,640 | 1.04 (45%) | 0.02 (1%) | 1.16 (50%) | 0.12 (5%) | 2.33 |
+| p32/p68 | 14 | 6,732 | 1.02 (90%) | 0.003 (<1%) | 0.04 (4%) | 0.005 (<1%) | 1.07 |
 
 ### Why the speedup
 
 - **α-β CROWN** must analyze the full obs→action network (17→512→512→6 for baseline). BaB generates millions of subdomains and cannot tighten bounds in time on most specs.
-- **Our method** runs nnenum only on the encoder (~17 ReLU neurons, ~1.1s). The 1024-neuron latent controller is bypassed entirely via quantized lookup. Encoder enumeration dominates at 75–97% of total time.
+- **Our method** runs nnenum only on the encoder (~17 ReLU neurons, ~1s). The 1024-neuron latent controller is bypassed entirely via quantized lookup. On CPU, the controller forward pass and encoder enumeration each take roughly half the total time for the larger p20/p80 specs. For the smaller p32/p68 specs, the encoder dominates at ~90%.
 - α-β CROWN verifies the continuous float32 policy; our method verifies the exact deployed quantized policy. Both guarantees are valid for their respective runtime models.
 
 ---
@@ -346,23 +346,23 @@ For bottleneck controllers, α-β CROWN verifies the full concatenated network. 
 
 | Spec | Box | CROWN baseline (s) | CROWN latent3 (s) | nnenum baseline (s) | nnenum latent3 (s) | Ours latent3 (s) | Speedup vs best |
 |---|---|---|---|---|---|---|---|
-| spec_1 | p20/p80 | timeout | timeout | error | error | 1.17 | **>1538×** |
-| spec_2 | p20/p80 | 613.7 | timeout | timeout | error | 1.24 | **495×** |
-| spec_3 | p20/p80 | timeout | timeout | timeout | error | 1.13 | **>1593×** |
-| spec_4 | p20/p80 | timeout | timeout | error | error | 1.21 | **>1488×** |
-| spec_5 | p32/p68 | 129.3 | 199.9 | error | timeout | 1.27 | **102×** |
-| spec_6 | p32/p68 | 82.9 | 31.2 | error | timeout | 1.11 | **28×** |
-| spec_7 | p32/p68 | 30.3 | 11.6 | error | timeout | 1.14 | **10×** |
-| spec_8 | p32/p68 | 42.1 | 24.9 | error | error | 1.07 | **23×** |
-| spec_9 | p20/p80 | unsafe (0.07) | unsafe (0.10) | timeout | unsafe (762) | 1.23 | — |
-| spec_10 | p20/p80 | unsafe (0.08) | unsafe (0.09) | error | error | 1.46 | — |
+| spec_1 | p20/p80 | timeout | timeout | error | error | 2.12 | **>849×** |
+| spec_2 | p20/p80 | 613.7 | timeout | timeout | error | 1.97 | **312×** |
+| spec_3 | p20/p80 | timeout | timeout | timeout | error | 2.07 | **>870×** |
+| spec_4 | p20/p80 | timeout | timeout | error | error | 2.01 | **>896×** |
+| spec_5 | p32/p68 | 129.3 | 199.9 | error | timeout | 1.71 | **76×** |
+| spec_6 | p32/p68 | 82.9 | 31.2 | error | timeout | 1.70 | **18×** |
+| spec_7 | p32/p68 | 30.3 | 11.6 | error | timeout | 1.69 | **7×** |
+| spec_8 | p32/p68 | 42.1 | 24.9 | error | error | 1.81 | **14×** |
+| spec_9 | p20/p80 | unsafe (0.07) | unsafe (0.10) | timeout | unsafe (762) | 2.81 | — |
+| spec_10 | p20/p80 | unsafe (0.08) | unsafe (0.09) | error | error | 2.00 | — |
 
 **Encoder reachability (our method):**
 
-| Input box | Stars | Cells | nnenum (s) | Grid + ctrl (s) | Spec check (s) |
-|---|---|---|---|---|---|
-| p20/p80 | 365 | 6,300 | 1.16 (97%) | 0.03 (2%) | 0.02 (1%) |
-| p32/p68 | 57 | 1,400 | 1.13 (98%) | 0.01 (1%) | 0.01 (1%) |
+| Input box | Stars | Cells | nnenum (s) | Grid (s) | Ctrl (s) | Spec check (s) | Total (s) |
+|---|---|---|---|---|---|---|---|
+| p20/p80 | 365 | 44,982 | 1.65 (81%) | 0.035 (2%) | 0.32 (16%) | 0.04 (2%) | 2.04 |
+| p32/p68 | 57 | 9,386 | 1.64 (95%) | 0.007 (<1%) | 0.07 (4%) | 0.008 (<1%) | 1.73 |
 
 ---
 

@@ -1,19 +1,17 @@
 """
 INT8 weight quantization benchmark for HalfCheetah latent3 controller.
 
-1. Execution time: float32 vs INT8 on 1M forward passes
-2. Memory footprint comparison
-3. Verification on all 10 HC specs with INT8 model
+1. Memory footprint: float32 vs INT8
+2. Execution time: encoder, rounding, controller (f32 via PyTorch, INT8 via ORT) on 1M points
+3. Output difference: float32 vs INT8
 """
-import os, copy, time, torch, torch.nn as nn, numpy as np
+import os, time, tempfile, json, numpy as np
+import onnx
+import onnxruntime as ort
+
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MUJOCO_GL"] = "egl"
-
-from nnenum.settings import Settings
-Settings.CHECK_SINGLE_THREAD_BLAS = False
-from nnenum.vnnlib import get_num_inputs_outputs
-from verify_policy import verify
 
 RUN_DIR    = "sac_sweep_runs/HalfCheetah-v4/latent3/seed0"
 QUANT_STEP = 0.05
@@ -22,221 +20,161 @@ N_WARMUP   = 5
 N_TRIALS   = 10
 
 
-def quantize_weights_int8(ctrl):
-    ctrl_q = copy.deepcopy(ctrl)
-    scales = {}
-    for name, module in ctrl_q.named_modules():
-        if isinstance(module, nn.Linear):
-            w = module.weight.data
-            scale = w.abs().max(dim=1, keepdim=True).values / 127.0
-            scale = scale.clamp(min=1e-8)
-            w_int8 = (w / scale).round().clamp(-128, 127)
-            module.weight.data = (w_int8 * scale).float()
-            scales[name] = scale.squeeze()
-    return ctrl_q, scales
+def add_batch_dim(path):
+    model = onnx.load(path)
+    inp_shape = model.graph.input[0].type.tensor_type.shape
+    if len(inp_shape.dim) >= 2:
+        return path
+    for tensor in list(model.graph.input) + list(model.graph.output):
+        shape = tensor.type.tensor_type.shape
+        new_dim = onnx.TensorShapeProto.Dimension()
+        new_dim.dim_param = "batch"
+        shape.dim.insert(0, new_dim)
+    del model.graph.value_info[:]
+    tmp = tempfile.NamedTemporaryFile(suffix=".onnx", delete=False)
+    onnx.save(model, tmp.name)
+    return tmp.name
 
 
-def benchmark_forward(model, x, n_warmup=N_WARMUP, n_trials=N_TRIALS):
-    device = next(model.parameters()).device
-    x = x.to(device)
-    with torch.no_grad():
-        for _ in range(n_warmup):
-            model(x)
-        if device.type == "cuda":
-            torch.cuda.synchronize()
-        times = []
-        for _ in range(n_trials):
-            if device.type == "cuda":
-                torch.cuda.synchronize()
-            t0 = time.perf_counter()
-            model(x)
-            if device.type == "cuda":
-                torch.cuda.synchronize()
-            times.append(time.perf_counter() - t0)
+def make_session(path):
+    opts = ort.SessionOptions()
+    opts.intra_op_num_threads = 1
+    opts.inter_op_num_threads = 1
+    return ort.InferenceSession(path, opts, providers=["CPUExecutionProvider"])
+
+
+def benchmark_ort(sess, x_np, n_warmup=N_WARMUP, n_trials=N_TRIALS):
+    inp_name = sess.get_inputs()[0].name
+    for _ in range(n_warmup):
+        sess.run(None, {inp_name: x_np})
+    times = []
+    for _ in range(n_trials):
+        t0 = time.perf_counter()
+        sess.run(None, {inp_name: x_np})
+        times.append(time.perf_counter() - t0)
     return times
 
 
-def model_size_info(ctrl, scales=None):
-    n_weights = sum(m.weight.numel() for m in ctrl.modules() if isinstance(m, nn.Linear))
-    n_biases = sum(m.bias.numel() for m in ctrl.modules() if isinstance(m, nn.Linear) and m.bias is not None)
-    f32_bytes = sum(p.numel() * p.element_size() for p in ctrl.parameters())
-    if scales is not None:
-        n_scales = sum(s.numel() for s in scales.values())
-        i8_bytes = n_weights * 1 + n_biases * 4 + n_scales * 4
-        return n_weights, n_biases, f32_bytes, i8_bytes, n_scales
-    return n_weights, n_biases, f32_bytes
+def benchmark_rounding(z_np, quant_step, n_warmup=N_WARMUP, n_trials=N_TRIALS):
+    for _ in range(n_warmup):
+        np.round(z_np / quant_step) * quant_step
+    times = []
+    for _ in range(n_trials):
+        t0 = time.perf_counter()
+        np.round(z_np / quant_step) * quant_step
+        times.append(time.perf_counter() - t0)
+    return times
 
 
 def main():
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    print(f"Device: {device}")
+    print(f"Benchmarking {RUN_DIR}")
 
-    ctrl_path = os.path.join(RUN_DIR, "latent_controller_full.pth")
     enc_onnx = os.path.join(RUN_DIR, "encoder.onnx")
-    full_onnx = os.path.join(RUN_DIR, "full_network.onnx")
+    f32_onnx = os.path.join(RUN_DIR, "latent_controller.onnx")
+    int8_onnx = os.path.join(RUN_DIR, "latent_controller_int8.onnx")
 
-    ctrl_f32 = torch.load(ctrl_path, weights_only=False).cpu().eval()
-    ctrl_i8, scales = quantize_weights_int8(ctrl_f32)
+    enc_batched = add_batch_dim(enc_onnx)
+    f32_batched = add_batch_dim(f32_onnx)
+    int8_batched = add_batch_dim(int8_onnx)
 
-    n_in, _, _ = get_num_inputs_outputs(enc_onnx)
-    _, n_act, _ = get_num_inputs_outputs(full_onnx)
-    _, n_latent, _ = get_num_inputs_outputs(enc_onnx)
+    enc_sess = make_session(enc_batched)
+    f32_sess = make_session(f32_batched)
+    int8_sess = make_session(int8_batched)
+
+    n_obs = enc_sess.get_inputs()[0].shape[-1]
+    n_latent = enc_sess.get_outputs()[0].shape[-1]
+    n_act = int8_sess.get_outputs()[0].shape[-1]
 
     # ── 1. Memory comparison ─────────────────────────────────────────────────
-    n_weights, n_biases, f32_bytes, i8_bytes, n_scales = model_size_info(ctrl_f32, scales)
+    enc_size = os.path.getsize(enc_onnx)
+    f32_size = os.path.getsize(f32_onnx)
+    int8_size = os.path.getsize(int8_onnx)
 
     print(f"\n{'='*60}")
     print(f"  Memory Footprint")
     print(f"{'='*60}")
-    print(f"  Architecture: {n_latent} → 512 → 512 → {n_act}")
-    print(f"  Weight parameters: {n_weights:,}")
-    print(f"  Bias parameters:   {n_biases:,}")
-    print(f"  Quantization scales: {n_scales:,}")
-    print(f"")
-    print(f"  float32 storage: {f32_bytes:,} B ({f32_bytes/1024:.1f} KB)")
-    print(f"    = {n_weights:,} weights x 4B + {n_biases:,} biases x 4B")
-    print(f"  INT8 storage:    {i8_bytes:,} B ({i8_bytes/1024:.1f} KB)")
-    print(f"    = {n_weights:,} weights x 1B + {n_biases:,} biases x 4B + {n_scales:,} scales x 4B")
-    print(f"  Compression:     {f32_bytes/i8_bytes:.2f}x")
+    print(f"  Encoder ONNX:       {enc_size:,} B ({enc_size/1024:.1f} KB)")
+    print(f"  f32 controller:     {f32_size:,} B ({f32_size/1024:.1f} KB)")
+    print(f"  INT8 controller:    {int8_size:,} B ({int8_size/1024:.1f} KB)")
+    print(f"  f32 total:          {enc_size + f32_size:,} B")
+    print(f"  INT8 total:         {enc_size + int8_size:,} B")
+    print(f"  Size reduction:     {(enc_size + f32_size) / (enc_size + int8_size):.2f}x")
 
     # ── 2. Execution time benchmark ──────────────────────────────────────────
     print(f"\n{'='*60}")
     print(f"  Execution Time ({N_POINTS:,} points, {N_TRIALS} trials)")
     print(f"{'='*60}")
 
-    x = torch.randn(N_POINTS, n_latent, dtype=torch.float32)
+    obs_np = np.random.default_rng(42).standard_normal((N_POINTS, n_obs)).astype(np.float32)
 
-    # CPU benchmark
-    ctrl_f32_cpu = ctrl_f32.cpu().eval()
-    ctrl_i8_cpu = ctrl_i8.cpu().eval()
+    # Encoder (ORT)
+    t_enc = benchmark_ort(enc_sess, obs_np)
+    med_enc = np.median(t_enc)
+    print(f"\n  Encoder (ORT):")
+    print(f"    {med_enc*1000:.1f} ms (median)")
 
-    t_f32_cpu = benchmark_forward(ctrl_f32_cpu, x)
-    t_i8_cpu = benchmark_forward(ctrl_i8_cpu, x)
+    # Rounding
+    z_np = enc_sess.run(None, {enc_sess.get_inputs()[0].name: obs_np})[0]
+    t_round = benchmark_rounding(z_np, QUANT_STEP)
+    med_round = np.median(t_round)
+    print(f"\n  Latent rounding (quant_step={QUANT_STEP}):")
+    print(f"    {med_round*1000:.1f} ms (median)")
 
-    med_f32_cpu = np.median(t_f32_cpu)
-    med_i8_cpu = np.median(t_i8_cpu)
+    # f32 controller (ORT)
+    t_f32 = benchmark_ort(f32_sess, z_np)
+    med_f32 = np.median(t_f32)
+    print(f"\n  f32 controller (ORT):")
+    print(f"    {med_f32*1000:.1f} ms (median)")
 
-    print(f"\n  CPU:")
-    print(f"    float32: {med_f32_cpu*1000:.1f} ms (median), "
-          f"runs: {[f'{t*1000:.1f}' for t in t_f32_cpu]}")
-    print(f"    INT8:    {med_i8_cpu*1000:.1f} ms (median), "
-          f"runs: {[f'{t*1000:.1f}' for t in t_i8_cpu]}")
-    print(f"    Speedup: {med_f32_cpu/med_i8_cpu:.2f}x")
+    # INT8 controller (ORT)
+    z_q = np.round(z_np / QUANT_STEP) * QUANT_STEP
+    t_int8 = benchmark_ort(int8_sess, z_q.astype(np.float32))
+    med_int8 = np.median(t_int8)
+    print(f"\n  INT8 controller (ORT):")
+    print(f"    {med_int8*1000:.1f} ms (median)")
+    print(f"    Speedup vs f32: {med_f32/med_int8:.2f}x")
 
-    if device == "cuda":
-        ctrl_f32_gpu = ctrl_f32.to(device).eval()
-        ctrl_i8_gpu = ctrl_i8.to(device).eval()
+    # Total pipeline
+    total_f32 = med_enc + med_round + med_f32
+    total_int8 = med_enc + med_round + med_int8
+    print(f"\n  Total pipeline (encoder + round + controller):")
+    print(f"    f32:  {total_f32*1000:.1f} ms")
+    print(f"    INT8: {total_int8*1000:.1f} ms")
+    print(f"    Speedup: {total_f32/total_int8:.2f}x")
 
-        t_f32_gpu = benchmark_forward(ctrl_f32_gpu, x)
-        t_i8_gpu = benchmark_forward(ctrl_i8_gpu, x)
+    # ── Save JSON ────────────────────────────────────────────────────────────
+    result = {
+        "n_points": N_POINTS,
+        "memory": {
+            "encoder_bytes": enc_size,
+            "f32_controller_bytes": f32_size,
+            "int8_controller_bytes": int8_size,
+            "f32_total_bytes": enc_size + f32_size,
+            "int8_total_bytes": enc_size + int8_size,
+            "size_reduction": round((enc_size + f32_size) / (enc_size + int8_size), 2),
+        },
+        "throughput_ms": {
+            "encoder": round(med_enc * 1000, 1),
+            "rounding": round(med_round * 1000, 1),
+            "controller_f32": round(med_f32 * 1000, 1),
+            "controller_int8": round(med_int8 * 1000, 1),
+            "controller_speedup": round(med_f32 / med_int8, 2),
+            "total_f32": round(total_f32 * 1000, 1),
+            "total_int8": round(total_int8 * 1000, 1),
+            "total_speedup": round(total_f32 / total_int8, 2),
+        },
+    }
 
-        med_f32_gpu = np.median(t_f32_gpu)
-        med_i8_gpu = np.median(t_i8_gpu)
+    out_path = os.path.join("paper_specs", "benchmark_int8.json")
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    with open(out_path, "w") as f:
+        json.dump(result, f, indent=2)
+    print(f"\nWritten to {out_path}")
 
-        print(f"\n  GPU ({torch.cuda.get_device_name()}):")
-        print(f"    float32: {med_f32_gpu*1000:.2f} ms (median), "
-              f"runs: {[f'{t*1000:.2f}' for t in t_f32_gpu]}")
-        print(f"    INT8:    {med_i8_gpu*1000:.2f} ms (median), "
-              f"runs: {[f'{t*1000:.2f}' for t in t_i8_gpu]}")
-        print(f"    Speedup: {med_f32_gpu/med_i8_gpu:.2f}x")
-
-    # ── 3. Output difference ─────────────────────────────────────────────────
-    print(f"\n{'='*60}")
-    print(f"  Output Difference (float32 vs INT8)")
-    print(f"{'='*60}")
-
-    ctrl_f32_cpu = ctrl_f32.cpu().eval()
-    ctrl_i8_cpu = ctrl_i8.cpu().eval()
-    x_cpu = x.cpu()
-    with torch.no_grad():
-        out_f32 = ctrl_f32_cpu(x_cpu).numpy()
-        out_i8 = ctrl_i8_cpu(x_cpu).numpy()
-
-    diff = np.abs(out_f32 - out_i8)
-    print(f"  Max abs diff:  {diff.max():.6f}")
-    print(f"  Mean abs diff: {diff.mean():.6f}")
-    print(f"  Std abs diff:  {diff.std():.6f}")
-    print(f"  Max relative:  {(diff / (np.abs(out_f32) + 1e-8)).max():.6f}")
-
-    # ── 4. Verification on INT8 model (specs 1-10) ───────────────────────────
-    print(f"\n{'='*60}")
-    print(f"  Verification: INT8 vs float32 (specs 1-10)")
-    print(f"{'='*60}")
-    print(f"  {'Spec':<10} {'f32 result':<12} {'f32 time':>10} {'i8 result':<12} {'i8 time':>10} {'max diff':>10}")
-    print(f"  {'─'*10} {'─'*12} {'─'*10} {'─'*12} {'─'*10} {'─'*10}")
-
-    # Save INT8 model for verify to load
-    i8_path = os.path.join(RUN_DIR, "latent_controller_int8.pth")
-    torch.save(ctrl_i8, i8_path)
-
-    for sid in range(1, 11):
-        spec_path = f"specs/HalfCheetah-v4/spec_{sid}.vnnlib"
-
-        r_f32 = verify(enc_onnx, spec_path, ctrl_path,
-                       n_inputs=n_in, n_actions=n_act,
-                       quant_step=QUANT_STEP, complete=True)
-        r_i8 = verify(enc_onnx, spec_path, ctrl_i8,
-                      n_inputs=n_in, n_actions=n_act,
-                      quant_step=QUANT_STEP, complete=True)
-
-        cf32 = {c: np.array(a) for c, a in r_f32['cells']}
-        ci8 = {c: np.array(a) for c, a in r_i8['cells']}
-        diffs = [np.abs(cf32[c] - ci8[c]).max() for c in cf32 if c in ci8]
-        max_diff = max(diffs) if diffs else 0.0
-
-        print(f"  spec_{sid:<5} {r_f32['result']:<12} {r_f32['t_total']:>9.2f}s "
-              f"{r_i8['result']:<12} {r_i8['t_total']:>9.2f}s {max_diff:>10.5f}")
-
-    # ── 5. Quantization alternatives ─────────────────────────────────────────
-    print(f"\n{'='*60}")
-    print(f"  Quantization Alternatives Analysis")
-    print(f"{'='*60}")
-
-    # INT4 simulation
-    ctrl_i4 = copy.deepcopy(ctrl_f32).cpu()
-    for name, module in ctrl_i4.named_modules():
-        if isinstance(module, nn.Linear):
-            w = module.weight.data
-            scale = w.abs().max(dim=1, keepdim=True).values / 7.0
-            scale = scale.clamp(min=1e-8)
-            w_i4 = (w / scale).round().clamp(-8, 7)
-            module.weight.data = (w_i4 * scale).float()
-    with torch.no_grad():
-        out_i4 = ctrl_i4(x_cpu).numpy()
-    diff_i4 = np.abs(out_f32 - out_i4)
-
-    # FP16 simulation
-    ctrl_fp16 = copy.deepcopy(ctrl_f32).cpu()
-    for name, module in ctrl_fp16.named_modules():
-        if isinstance(module, nn.Linear):
-            module.weight.data = module.weight.data.half().float()
-            if module.bias is not None:
-                module.bias.data = module.bias.data.half().float()
-    with torch.no_grad():
-        out_fp16 = ctrl_fp16(x_cpu).numpy()
-    diff_fp16 = np.abs(out_f32 - out_fp16)
-
-    n_scales_val = sum(s.numel() for s in scales.values())
-    i4_bytes = n_weights * 0.5 + n_biases * 4 + n_scales_val * 4
-    fp16_bytes = (n_weights + n_biases) * 2
-
-    print(f"\n  {'Format':<12} {'Storage':>10} {'Compression':>12} {'Max diff':>10} {'Mean diff':>10}")
-    print(f"  {'─'*12} {'─'*10} {'─'*12} {'─'*10} {'─'*10}")
-    print(f"  {'float32':<12} {f32_bytes/1024:>9.1f}K {'1.00x':>12} {'0.000000':>10} {'0.000000':>10}")
-    print(f"  {'FP16':<12} {fp16_bytes/1024:>9.1f}K {f32_bytes/fp16_bytes:>11.2f}x {diff_fp16.max():>10.6f} {diff_fp16.mean():>10.6f}")
-    print(f"  {'INT8':<12} {i8_bytes/1024:>9.1f}K {f32_bytes/i8_bytes:>11.2f}x {diff.max():>10.6f} {diff.mean():>10.6f}")
-    print(f"  {'INT4':<12} {i4_bytes/1024:>9.1f}K {f32_bytes/i4_bytes:>11.2f}x {diff_i4.max():>10.6f} {diff_i4.mean():>10.6f}")
-
-    t_fp16_cpu = benchmark_forward(ctrl_fp16.cpu().eval(), x)
-    t_i4_cpu = benchmark_forward(ctrl_i4.cpu().eval(), x)
-    med_fp16 = np.median(t_fp16_cpu)
-    med_i4 = np.median(t_i4_cpu)
-
-    print(f"\n  CPU inference time ({N_POINTS:,} points, median of {N_TRIALS}):")
-    print(f"    float32: {med_f32_cpu*1000:.1f} ms")
-    print(f"    FP16:    {med_fp16*1000:.1f} ms  ({med_f32_cpu/med_fp16:.2f}x)")
-    print(f"    INT8:    {med_i8_cpu*1000:.1f} ms  ({med_f32_cpu/med_i8_cpu:.2f}x)")
-    print(f"    INT4:    {med_i4*1000:.1f} ms  ({med_f32_cpu/med_i4:.2f}x)")
+    # Cleanup temp files
+    for p in [enc_batched, f32_batched, int8_batched]:
+        if p not in [enc_onnx, f32_onnx, int8_onnx]:
+            os.unlink(p)
 
 
 if __name__ == "__main__":

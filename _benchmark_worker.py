@@ -1,0 +1,151 @@
+"""Benchmark: 1M-point throughput for f32 bottleneck vs INT8 quantized bottleneck,
+plus file size comparison and reward evaluation."""
+import os, sys, json, time, tempfile, warnings
+
+os.environ["MUJOCO_GL"] = "egl"
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+warnings.filterwarnings("ignore")
+
+import numpy as np
+import torch
+import onnx
+import onnxruntime as ort
+
+N_POINTS = 1_000_000
+N_EVAL_EPISODES = 10
+
+enc_onnx = sys.argv[1]
+int8_onnx = sys.argv[2]
+ctrl_pth = sys.argv[3]
+quant_step = float(sys.argv[4])
+out_json = sys.argv[5]
+env_name = sys.argv[6]
+run_dir = sys.argv[7]
+
+
+def add_batch_dim(path):
+    model = onnx.load(path)
+    inp_shape = model.graph.input[0].type.tensor_type.shape
+    if len(inp_shape.dim) >= 2:
+        return path
+    for tensor in list(model.graph.input) + list(model.graph.output):
+        shape = tensor.type.tensor_type.shape
+        new_dim = onnx.TensorShapeProto.Dimension()
+        new_dim.dim_param = "batch"
+        shape.dim.insert(0, new_dim)
+    del model.graph.value_info[:]
+    tmp = tempfile.NamedTemporaryFile(suffix=".onnx", delete=False)
+    onnx.save(model, tmp.name)
+    return tmp.name
+
+
+def make_session(path):
+    opts = ort.SessionOptions()
+    opts.intra_op_num_threads = 1
+    opts.inter_op_num_threads = 1
+    return ort.InferenceSession(path, opts, providers=["CPUExecutionProvider"])
+
+
+# Load models
+enc_batched = add_batch_dim(enc_onnx)
+int8_batched = add_batch_dim(int8_onnx)
+
+enc_sess = make_session(enc_batched)
+int8_sess = make_session(int8_batched)
+f32_ctrl = torch.load(ctrl_pth, weights_only=False).cpu().eval()
+
+enc_inp = enc_sess.get_inputs()[0]
+int8_inp = int8_sess.get_inputs()[0]
+n_obs = enc_inp.shape[-1]
+n_latent = enc_sess.get_outputs()[0].shape[-1]
+
+rng = np.random.default_rng(42)
+obs = rng.standard_normal((N_POINTS, n_obs)).astype(np.float32)
+
+# --- f32 bottleneck: encoder -> f32 controller ---
+t0 = time.time()
+latent_f32 = enc_sess.run(None, {enc_inp.name: obs})[0]
+with torch.no_grad():
+    f32_out = f32_ctrl(torch.from_numpy(latent_f32)).numpy()
+t_f32 = time.time() - t0
+
+# --- INT8 quantized bottleneck: encoder -> quantize -> int8 controller ---
+t0 = time.time()
+latent = enc_sess.run(None, {enc_inp.name: obs})[0]
+latent_q = np.round(latent / quant_step) * quant_step
+int8_out = int8_sess.run(None, {int8_inp.name: latent_q})[0]
+t_int8 = time.time() - t0
+
+# Clean up temp files
+for p in [enc_batched, int8_batched]:
+    if p not in [enc_onnx, int8_onnx]:
+        os.unlink(p)
+
+# --- File sizes ---
+enc_size = os.path.getsize(enc_onnx)
+f32_size = os.path.getsize(ctrl_pth)
+int8_size = os.path.getsize(int8_onnx)
+
+# --- Reward evaluation: INT8 quantized policy in env ---
+import gymnasium as gym
+from stable_baselines3.common.vec_env import DummyVecEnv, VecMonitor, VecNormalize
+
+vec_norm_path = os.path.join(run_dir, "train_vec_norm.pkl")
+env = DummyVecEnv([lambda: gym.make(env_name)]); env.seed(0)
+vn = VecNormalize.load(vec_norm_path, VecMonitor(env))
+vn.training = False
+vn.norm_reward = False
+
+enc_1d = make_session(enc_onnx)
+int8_1d = make_session(int8_onnx)
+enc_1d_name = enc_1d.get_inputs()[0].name
+int8_1d_name = int8_1d.get_inputs()[0].name
+
+returns = []
+obs = vn.reset()
+ep_ret = 0.0
+while len(returns) < N_EVAL_EPISODES:
+    x = obs[0].astype(np.float32)
+    z = enc_1d.run(None, {enc_1d_name: x})[0]
+    z_q = np.round(z / quant_step) * quant_step
+    a = int8_1d.run(None, {int8_1d_name: z_q.reshape(1, -1)})[0][0]
+    action = np.clip(np.tanh(a), -1.0, 1.0)
+    obs, _, done, _ = vn.step([action])
+    ep_ret += vn.get_original_reward()[0]
+    if done[0]:
+        returns.append(ep_ret)
+        ep_ret = 0.0
+        obs = vn.reset()
+vn.close()
+
+returns = np.array(returns)
+
+result = {
+    "n_points": N_POINTS,
+    "quant_step": quant_step,
+    "throughput": {
+        "f32_bottleneck_sec": round(t_f32, 4),
+        "int8_bottleneck_sec": round(t_int8, 4),
+        "speedup": round(t_f32 / t_int8, 2) if t_int8 > 0 else None,
+    },
+    "file_sizes_bytes": {
+        "encoder_onnx": enc_size,
+        "f32_controller_pth": f32_size,
+        "int8_controller_onnx": int8_size,
+        "f32_total": enc_size + f32_size,
+        "int8_total": enc_size + int8_size,
+        "size_reduction_ratio": round((enc_size + f32_size) / (enc_size + int8_size), 2),
+    },
+    "reward": {
+        "n_episodes": N_EVAL_EPISODES,
+        "quant_step": quant_step,
+        "mean": round(float(returns.mean()), 1),
+        "std": round(float(returns.std()), 1),
+        "min": round(float(returns.min()), 1),
+        "max": round(float(returns.max()), 1),
+    },
+}
+
+with open(out_json, "w") as f:
+    json.dump(result, f, indent=2)

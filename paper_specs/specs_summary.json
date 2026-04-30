@@ -1,0 +1,126 @@
+{
+  "HalfCheetah-v4": {
+    "spec_1": {
+      "label": "easy safe",
+      "box_pct": 10,
+      "output_constraint": "Y_0 >= 5.754589"
+    },
+    "spec_2": {
+      "label": "easy safe",
+      "box_pct": 10,
+      "output_constraint": "Y_1 >= 2.75058"
+    },
+    "spec_3": {
+      "label": "easy safe",
+      "box_pct": 10,
+      "output_constraint": "Y_2 >= 3.681908"
+    },
+    "spec_4": {
+      "label": "easy unsafe",
+      "box_pct": 10,
+      "output_constraint": "Y_3 >= 2.630506"
+    },
+    "spec_5": {
+      "label": "easy unsafe",
+      "box_pct": 10,
+      "output_constraint": "Y_4 >= 1.397169"
+    },
+    "spec_6": {
+      "label": "easy unsafe",
+      "box_pct": 10,
+      "output_constraint": "Y_5 >= 1.985687"
+    },
+    "spec_7": {
+      "label": "hard safe",
+      "box_pct": 20,
+      "output_constraint": "Y_0 >= 7.76826"
+    },
+    "spec_8": {
+      "label": "hard safe",
+      "box_pct": 20,
+      "output_constraint": "Y_1 >= 7.025946"
+    },
+    "spec_9": {
+      "label": "hard safe",
+      "box_pct": 20,
+      "output_constraint": "Y_2 >= 6.54256"
+    },
+    "spec_10": {
+      "label": "hard unsafe",
+      "box_pct": 20,
+      "output_constraint": "Y_3 >= 4.49499"
+    },
+    "spec_11": {
+      "label": "hard unsafe",
+      "box_pct": 20,
+      "output_constraint": "Y_4 >= 3.183129"
+    },
+    "spec_12": {
+      "label": "hard unsafe",
+      "box_pct": 20,
+      "output_constraint": "Y_5 >= 3.264777"
+    }
+  },
+  "Hopper-v5": {
+    "spec_1": {
+      "label": "easy safe",
+      "box_pct": 10,
+      "output_constraint": "Y_0 >= 4.122561"
+    },
+    "spec_2": {
+      "label": "easy safe",
+      "box_pct": 10,
+      "output_constraint": "Y_1 >= 13.13478"
+    },
+    "spec_3": {
+      "label": "easy safe",
+      "box_pct": 10,
+      "output_constraint": "Y_2 >= 9.16368"
+    },
+    "spec_4": {
+      "label": "easy unsafe",
+      "box_pct": 10,
+      "output_constraint": "Y_0 >= 2.608463"
+    },
+    "spec_5": {
+      "label": "easy unsafe",
+      "box_pct": 10,
+      "output_constraint": "Y_1 >= 3.47574"
+    },
+    "spec_6": {
+      "label": "easy unsafe",
+      "box_pct": 10,
+      "output_constraint": "Y_2 >= 5.603937"
+    },
+    "spec_7": {
+      "label": "hard safe",
+      "box_pct": 20,
+      "output_constraint": "Y_0 >= 9.514691"
+    },
+    "spec_8": {
+      "label": "hard safe",
+      "box_pct": 20,
+      "output_constraint": "Y_1 >= 16.200518"
+    },
+    "spec_9": {
+      "label": "hard safe",
+      "box_pct": 20,
+      "output_constraint": "Y_2 >= 12.468842"
+    },
+    "spec_10": {
+      "label": "hard unsafe",
+      "box_pct": 20,
+      "output_constraint": "Y_0 >= 3.801262"
+    },
+    "spec_11": {
+      "label": "hard unsafe",
+      "box_pct": 20,
+      "output_constraint": "Y_1 >= 5.939705"
+    },
+    "spec_12": {
+      "label": "hard unsafe",
+      "box_pct": 20,
+      "output_constraint": "Y_2 >= 7.392722"
+    }
+  }
+}

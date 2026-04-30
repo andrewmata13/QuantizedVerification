@@ -1,0 +1,338 @@
+{
+  "HalfCheetah-v4/baseline/spec_1": {
+    "result": "timeout",
+    "time": 600.03,
+    "raw_status": "unknown",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "HalfCheetah-v4/baseline/spec_2": {
+    "result": "timeout",
+    "time": 600.03,
+    "raw_status": "unknown",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "HalfCheetah-v4/baseline/spec_3": {
+    "result": "timeout",
+    "time": 600.01,
+    "raw_status": "unknown",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "HalfCheetah-v4/baseline/spec_4": {
+    "result": "unsafe",
+    "time": 0.17,
+    "raw_status": "unsafe-pgd",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "HalfCheetah-v4/baseline/spec_5": {
+    "result": "unsafe",
+    "time": 0.17,
+    "raw_status": "unsafe-pgd",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "HalfCheetah-v4/baseline/spec_6": {
+    "result": "unsafe",
+    "time": 0.17,
+    "raw_status": "unsafe-pgd",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "HalfCheetah-v4/baseline/spec_7": {
+    "result": "timeout",
+    "time": 600.0,
+    "raw_status": "unknown",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "HalfCheetah-v4/baseline/spec_8": {
+    "result": "timeout",
+    "time": 600.1,
+    "raw_status": "unknown",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "HalfCheetah-v4/baseline/spec_9": {
+    "result": "timeout",
+    "time": 600.02,
+    "raw_status": "unknown",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "HalfCheetah-v4/baseline/spec_11": {
+    "result": "unsafe",
+    "time": 0.16,
+    "raw_status": "unsafe-pgd",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "HalfCheetah-v4/baseline/spec_12": {
+    "result": "unsafe",
+    "time": 0.16,
+    "raw_status": "unsafe-pgd",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "HalfCheetah-v4/latent3/spec_1": {
+    "result": "safe",
+    "time": 54.18,
+    "raw_status": "safe",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "HalfCheetah-v4/latent3/spec_2": {
+    "result": "timeout",
+    "time": 600.17,
+    "raw_status": "unknown",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "HalfCheetah-v4/latent3/spec_3": {
+    "result": "timeout",
+    "time": 600.23,
+    "raw_status": "unknown",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "HalfCheetah-v4/latent3/spec_4": {
+    "result": "unsafe",
+    "time": 0.17,
+    "raw_status": "unsafe-pgd",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "HalfCheetah-v4/latent3/spec_5": {
+    "result": "unsafe",
+    "time": 0.15,
+    "raw_status": "unsafe-pgd",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "HalfCheetah-v4/latent3/spec_6": {
+    "result": "unsafe",
+    "time": 0.21,
+    "raw_status": "unsafe-pgd",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "HalfCheetah-v4/latent3/spec_7": {
+    "result": "timeout",
+    "time": 600.21,
+    "raw_status": "unknown",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "HalfCheetah-v4/latent3/spec_8": {
+    "result": "timeout",
+    "time": 600.1,
+    "raw_status": "unknown",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "HalfCheetah-v4/latent3/spec_9": {
+    "result": "timeout",
+    "time": 600.06,
+    "raw_status": "unknown",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "HalfCheetah-v4/latent3/spec_11": {
+    "result": "unsafe",
+    "time": 0.23,
+    "raw_status": "unsafe-pgd",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "HalfCheetah-v4/latent3/spec_12": {
+    "result": "unsafe",
+    "time": 7.37,
+    "raw_status": "unsafe-bab",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "Hopper-v5/baseline/spec_1": {
+    "result": "timeout",
+    "time": 600.02,
+    "raw_status": "unknown",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "Hopper-v5/baseline/spec_2": {
+    "result": "safe",
+    "time": 387.63,
+    "raw_status": "safe",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "Hopper-v5/baseline/spec_3": {
+    "result": "timeout",
+    "time": 600.01,
+    "raw_status": "unknown",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "Hopper-v5/baseline/spec_4": {
+    "result": "unsafe",
+    "time": 0.16,
+    "raw_status": "unsafe-pgd",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "Hopper-v5/baseline/spec_5": {
+    "result": "unsafe",
+    "time": 0.16,
+    "raw_status": "unsafe-pgd",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "Hopper-v5/baseline/spec_6": {
+    "result": "unsafe",
+    "time": 0.16,
+    "raw_status": "unsafe-pgd",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "Hopper-v5/baseline/spec_7": {
+    "result": "timeout",
+    "time": 600.22,
+    "raw_status": "unknown",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "Hopper-v5/baseline/spec_8": {
+    "result": "timeout",
+    "time": 600.03,
+    "raw_status": "unknown",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "Hopper-v5/baseline/spec_9": {
+    "result": "timeout",
+    "time": 600.01,
+    "raw_status": "unknown",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "Hopper-v5/baseline/spec_11": {
+    "result": "unsafe",
+    "time": 0.15,
+    "raw_status": "unsafe-pgd",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "Hopper-v5/latent3/spec_1": {
+    "result": "timeout",
+    "time": 600.03,
+    "raw_status": "unknown",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "Hopper-v5/latent3/spec_2": {
+    "result": "timeout",
+    "time": 600.02,
+    "raw_status": "unknown",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "Hopper-v5/latent3/spec_3": {
+    "result": "safe",
+    "time": 340.45,
+    "raw_status": "safe",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "Hopper-v5/latent3/spec_4": {
+    "result": "unsafe",
+    "time": 0.19,
+    "raw_status": "unsafe-pgd",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "Hopper-v5/latent3/spec_5": {
+    "result": "timeout",
+    "time": 600.01,
+    "raw_status": "unknown",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "Hopper-v5/latent3/spec_6": {
+    "result": "timeout",
+    "time": 600.05,
+    "raw_status": "unknown",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "Hopper-v5/latent3/spec_7": {
+    "result": "timeout",
+    "time": 600.0,
+    "raw_status": "unknown",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "Hopper-v5/latent3/spec_8": {
+    "result": "timeout",
+    "time": 600.04,
+    "raw_status": "unknown",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "Hopper-v5/latent3/spec_9": {
+    "result": "timeout",
+    "time": 600.03,
+    "raw_status": "unknown",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "Hopper-v5/latent3/spec_11": {
+    "result": "unsafe",
+    "time": 0.17,
+    "raw_status": "unsafe-pgd",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "HalfCheetah-v4/baseline/spec_10": {
+    "result": "unsafe",
+    "time": 0.2,
+    "raw_status": "unsafe-pgd",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "HalfCheetah-v4/latent3/spec_10": {
+    "result": "unsafe",
+    "time": 0.18,
+    "raw_status": "unsafe-pgd",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "Hopper-v5/baseline/spec_10": {
+    "result": "unsafe",
+    "time": 0.16,
+    "raw_status": "unsafe-pgd",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "Hopper-v5/baseline/spec_12": {
+    "result": "unsafe",
+    "time": 0.17,
+    "raw_status": "unsafe-pgd",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "Hopper-v5/latent3/spec_10": {
+    "result": "unsafe",
+    "time": 0.17,
+    "raw_status": "unsafe-pgd",
+    "device": "cuda",
+    "batch_size": 256
+  },
+  "Hopper-v5/latent3/spec_12": {
+    "result": "unsafe",
+    "time": 0.22,
+    "raw_status": "unsafe-pgd",
+    "device": "cuda",
+    "batch_size": 256
+  }
+}

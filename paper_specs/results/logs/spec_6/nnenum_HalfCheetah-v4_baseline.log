@@ -1,0 +1,23 @@
+=== nnenum (control): HalfCheetah-v4 baseline spec_6 ===
+onnx: sac_sweep_runs/HalfCheetah-v4/baseline/seed0/full_network.onnx
+spec: paper_specs/HalfCheetah-v4/spec_6.vnnlib
+timeout: 600
+
+Running in parallel with 32 processes
+(0.0 sec) Q: 0, Sets: 0/1  (0.0%) ETA: - (expected 1 stars)   
+
+Pre-overapproximation simulation found a confirmed counterexample.
+
+Unsafe Base Branch: + (Mode: 0)
+
+
+
+Total Stars: 1 (0 exact, 1 approx)
+Runtime: 0.1 sec
+Completed work frac: 0.5
+Num Stars Copied Between Processes: 0
+Num Lps During Enumeration: 0
+Total Num Lps: 0
+
+Result: network is UNSAFE with confirmed counterexample in result.cinput and result.coutput
+Output: [3.96490740776062, -3.312758207321167, 1.4666121006011963, -0.8380053043365479, -1.7914342880249023, 2.061713933944702]

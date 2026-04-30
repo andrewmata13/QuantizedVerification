@@ -1,0 +1,47 @@
+; Hopper-v5 spec_5 — easy unsafe
+; Box: 10% of full rollout bounding box
+; Violation: Y_1 >= 3.475740
+; PGD max: 3.6587, buffer: 5%
+
+(declare-const X_0  Real)
+(declare-const X_1  Real)
+(declare-const X_2  Real)
+(declare-const X_3  Real)
+(declare-const X_4  Real)
+(declare-const X_5  Real)
+(declare-const X_6  Real)
+(declare-const X_7  Real)
+(declare-const X_8  Real)
+(declare-const X_9  Real)
+(declare-const X_10 Real)
+
+(declare-const Y_0  Real)
+(declare-const Y_1  Real)
+(declare-const Y_2  Real)
+
+(assert (>= X_0  +0.0011))
+(assert (<= X_0  +0.3483))
+(assert (>= X_1  +0.3860))
+(assert (<= X_1  +0.8372))
+(assert (>= X_2  -0.1503))
+(assert (<= X_2  +0.1350))
+(assert (>= X_3  -0.4004))
+(assert (<= X_3  -0.0614))
+(assert (>= X_4  -0.1512))
+(assert (<= X_4  +0.1528))
+(assert (>= X_5  -1.1283))
+(assert (<= X_5  -0.7291))
+(assert (>= X_6  -0.0738))
+(assert (<= X_6  +0.3049))
+(assert (>= X_7  -0.7046))
+(assert (<= X_7  +0.1231))
+(assert (>= X_8  -0.4195))
+(assert (<= X_8  +0.1584))
+(assert (>= X_9  -0.2088))
+(assert (<= X_9  +0.2653))
+(assert (>= X_10 -0.1520))
+(assert (<= X_10 +0.1679))
+
+(assert (or
+    (and (>= Y_1 +3.475740))
+))

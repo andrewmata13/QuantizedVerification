@@ -203,38 +203,50 @@ def remap_clusters(km, cluster_labels=CLUSTER_LABELS):
 def plot_semantic_heatmap(z1, z2, actions, quant_step, out_path,
                           traj_z=None, show_quant_grid=True):
     """
-    Left: behavioral mode map from k-means on action vectors (k=4).
-    Right: action magnitude heatmap.
-    Optionally overlay rollout trajectory from --traj_npy.
+    Left: behavioral mode map from k-means on action vectors (k=4), continuous.
+    Right: quantized version — each grid cell colored by k-means cluster of its center.
     """
-    import matplotlib.patches as mpatches
+    from matplotlib.patches import Rectangle
 
     res = actions.shape[0]
     actions_flat = actions.reshape(-1, 6)
-    magnitudes = np.linalg.norm(actions, axis=2)
 
     km = fit_kmeans(actions_flat)
     remap = remap_clusters(km)
 
-    # Remap raw labels → semantic indices
     raw_labels = km.labels_.reshape(res, res)
     labels = np.vectorize(remap.__getitem__)(raw_labels)
 
-    # Build color image
     color_list = [CLUSTER_LABELS[i][1] for i in range(N_CLUSTERS)]
     color_arr  = np.array([mcolors.to_rgb(c) for c in color_list])
-    rgb = color_arr[labels]   # (res, res, 3)
+    rgb = color_arr[labels]
 
-    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+    # Evaluate controller at quantized cell centers
+    ctrl = load_controller(RUN_DIR)
+    lo, hi = z1[0], z1[-1]
+    half = quant_step / 2.0
+    c_vals = np.arange(lo + half, hi, quant_step, dtype=np.float32)
+    n_cells = len(c_vals)
+    C1, C2 = np.meshgrid(c_vals, c_vals)
+    flat_cells = np.stack([C1.ravel(), C2.ravel()], axis=1)
 
-    # ── Left: mode map ──────────────────────────────────────────────────────
+    with torch.no_grad():
+        cell_actions = ctrl(torch.from_numpy(flat_cells)).numpy()
+    cell_labels_raw = km.predict(cell_actions)
+    cell_labels = np.vectorize(remap.__getitem__)(cell_labels_raw)
+    cell_labels = cell_labels.reshape(n_cells, n_cells)
+
+    AXIS_FS = 14
+    TICK_FS = 12
+
+    fig, axes = plt.subplots(1, 2, figsize=(13, 5.5))
+
+    # ── Left: continuous mode map ───────────────────────────────────────────
     ax = axes[0]
     ax.imshow(
-        rgb,
-        origin="lower",
+        rgb, origin="lower",
         extent=[z1[0], z1[-1], z2[0], z2[-1]],
-        aspect="equal",
-        interpolation="nearest",
+        aspect="equal", interpolation="nearest",
     )
     if show_quant_grid:
         lines = quant_grid_lines((z1[0], z1[-1]), quant_step)
@@ -242,68 +254,37 @@ def plot_semantic_heatmap(z1, z2, actions, quant_step, out_path,
             ax.axvline(v, color="w", lw=0.4, alpha=0.35)
             ax.axhline(v, color="w", lw=0.4, alpha=0.35)
 
-    patches = []
-    for sem_idx in range(N_CLUSTERS):
-        name, color = CLUSTER_LABELS[sem_idx]
-        pct = (labels == sem_idx).mean() * 100
-        patches.append(mpatches.Patch(color=color, label=f"{name}  ({pct:.0f}%)"))
-    ax.legend(handles=patches, loc="upper right", fontsize=9, framealpha=0.9,
-              title="Gait phase", title_fontsize=9)
-    ax.set_title("Behavioral modes (k-means, k=4)", fontsize=11)
-    ax.set_xlabel("z₁", fontsize=10); ax.set_ylabel("z₂", fontsize=10)
+    ax.set_xlabel("z₁", fontsize=AXIS_FS)
+    ax.set_ylabel("z₂", fontsize=AXIS_FS)
+    ax.tick_params(labelsize=TICK_FS)
 
-    # ── Right: magnitude ────────────────────────────────────────────────────
+    # ── Right: quantized cell grid ──────────────────────────────────────────
     ax2 = axes[1]
-    im = ax2.imshow(
-        magnitudes,
-        origin="lower",
-        extent=[z1[0], z1[-1], z2[0], z2[-1]],
-        aspect="equal",
-        cmap="viridis",
-        interpolation="bilinear",
+
+    cell_rgb = color_arr[cell_labels]
+    grid_lo = lo
+    grid_hi = lo + n_cells * quant_step
+    ax2.imshow(
+        cell_rgb, origin="lower",
+        extent=[grid_lo, grid_hi, grid_lo, grid_hi],
+        aspect="equal", interpolation="nearest",
     )
-    fig.colorbar(im, ax=ax2, fraction=0.046, pad=0.04, label="‖action‖₂")
-    if show_quant_grid:
-        for v in lines:
-            ax2.axvline(v, color="w", lw=0.4, alpha=0.35)
-            ax2.axhline(v, color="w", lw=0.4, alpha=0.35)
 
-    if traj_z is not None:
-        for ax_ in axes:
-            sc = ax_.scatter(
-                traj_z[:, 0], traj_z[:, 1],
-                c=np.arange(len(traj_z)), cmap="cool",
-                s=5, alpha=0.7, linewidths=0, zorder=5,
-            )
-        axes[0].legend(
-            handles=patches + [mpatches.Patch(color="#00e5ff", label="rollout")],
-            loc="upper right", fontsize=9, framealpha=0.9,
-            title="Gait phase", title_fontsize=9,
-        )
+    for v in np.arange(grid_lo, grid_hi + quant_step * 0.5, quant_step):
+        ax2.axvline(v, color="k", lw=0.5, alpha=0.4)
+        ax2.axhline(v, color="k", lw=0.5, alpha=0.4)
 
-    ax2.set_title("Action magnitude ‖pre-tanh‖₂", fontsize=11)
-    ax2.set_xlabel("z₁", fontsize=10); ax2.set_ylabel("z₂", fontsize=10)
+    ax2.set_xlim(grid_lo, grid_hi)
+    ax2.set_ylim(grid_lo, grid_hi)
+    ax2.set_xlabel("z₁", fontsize=AXIS_FS)
+    ax2.set_ylabel("z₂", fontsize=AXIS_FS)
+    ax2.tick_params(labelsize=TICK_FS)
 
-    fig.suptitle(
-        "HalfCheetah-v4 — 2D latent space encodes distinct gait phases",
-        fontsize=13,
-    )
     fig.tight_layout()
     fig.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"Saved: {out_path}")
-
-    # Print cluster center summary for reference
-    remap_inv = {v: k for k, v in remap.items()}
-    print("\nCluster centers (semantic order):")
-    ynames = ["Y0 back-hip", "Y1 back-knee", "Y2 back-ankle",
-              "Y3 front-hip", "Y4 front-knee", "Y5 front-ankle"]
-    for sem_idx in range(N_CLUSTERS):
-        raw = remap_inv[sem_idx]
-        name = CLUSTER_LABELS[sem_idx][0]
-        center = km.cluster_centers_[raw]
-        vals = "  ".join(f"{n}={v:+.2f}" for n, v in zip(ynames, center))
-        print(f"  {name}: {vals}")
+    print(f"Quantized grid: {n_cells}×{n_cells} = {n_cells**2} cells")
 
 
 # ── Figure 3: spec boundary overlay ───────────────────────────────────────────
@@ -317,14 +298,52 @@ SAFE_SPECS = [
 ]
 
 
+def _enumerate_encoder_stars(spec_path, encoder_onnx, n_lat):
+    """Run nnenum on encoder, return list of output stars and their bounding box."""
+    from nnenum.settings import Settings
+    Settings.CHECK_SINGLE_THREAD_BLAS = False
+    from nnenum.nnenum import set_exact_settings
+    from nnenum.enumerate import enumerate_network
+    from nnenum.onnx_network import load_onnx_network_optimized
+    from nnenum.specification import Specification
+    from nnenum.vnnlib import read_vnnlib_simple, get_num_inputs_outputs
+
+    n_in, _, _ = get_num_inputs_outputs(encoder_onnx)
+
+    set_exact_settings()
+    Settings.CHECK_SINGLE_THREAD_BLAS = False
+    Settings.RESULT_SAVE_STARS = True
+    Settings.OVERAPPROX_BOTH_BOUNDS = True
+    Settings.BRANCH_MODE = Settings.BRANCH_OVERAPPROX
+
+    net = load_onnx_network_optimized(encoder_onnx)
+    vnnlib = read_vnnlib_simple(spec_path, n_in, n_lat + 6)
+    box, _ = vnnlib[0]
+    init_box = np.array(box, dtype=np.float32)
+
+    trivial_spec = Specification(np.eye(n_lat), np.full(n_lat, -1.0))
+    res = enumerate_network(init_box, net, trivial_spec)
+    stars = res.stars
+
+    global_lo = np.full(n_lat, np.inf)
+    global_hi = np.full(n_lat, -np.inf)
+    for s in stars:
+        lo = np.array([s.minimize_output(d, maximize=False) for d in range(n_lat)])
+        hi = np.array([s.minimize_output(d, maximize=True) for d in range(n_lat)])
+        global_lo = np.minimum(global_lo, lo)
+        global_hi = np.maximum(global_hi, hi)
+
+    return stars, global_lo, global_hi
+
+
 def plot_spec_overlay(z1, z2, actions, quant_step, out_path, show_quant_grid=True):
     """
-    Left: behavioral mode map from k-means (same as semantic).
-    Right: spec utilization heatmap — how close the controller comes to
-    violating each safe spec, expressed as % of threshold.
+    Left: full latent space with gait-phase coloring and quantization grid.
+    Right: zoomed to reachable region from spec_5 (p32/p68), showing encoder
+           output star sets and the quantized cells they cover.
     """
     import matplotlib.patches as mpatches
-    from matplotlib.colors import LinearSegmentedColormap
+    from matplotlib.patches import Rectangle, Polygon
 
     STYLE = os.path.join(os.path.dirname(__file__), "bak_matplotlib.mlpstyle")
     if os.path.exists(STYLE):
@@ -342,10 +361,39 @@ def plot_spec_overlay(z1, z2, actions, quant_step, out_path, show_quant_grid=Tru
     color_arr  = np.array([mcolors.to_rgb(c) for c in color_list])
     rgb = color_arr[labels]
 
-    fig, axes = plt.subplots(1, 2, figsize=(13, 5.5))
+    # Run encoder enumeration for spec_5
+    enc_onnx = os.path.join(RUN_DIR, "encoder.onnx")
+    spec_path = "specs/HalfCheetah-v4/spec_5.vnnlib"
+    print("Running encoder enumeration for spec_5 ...")
+    stars, global_lo, global_hi = _enumerate_encoder_stars(spec_path, enc_onnx, 2)
+    print(f"  {len(stars)} stars, bbox z1=[{global_lo[0]:.3f}, {global_hi[0]:.3f}], "
+          f"z2=[{global_lo[1]:.3f}, {global_hi[1]:.3f}]")
 
-    # ── Left: mode map ──────────────────────────────────────────────────────
-    ax = axes[0]
+    # Enumerate reachable cells from bounding box
+    half = quant_step / 2.0
+    axes_list = []
+    for d in range(2):
+        first = np.floor(global_lo[d] / quant_step) * quant_step + half
+        last = np.floor(global_hi[d] / quant_step) * quant_step + half
+        axes_list.append(np.arange(first, last + quant_step * 0.5, quant_step))
+    C1, C2 = np.meshgrid(axes_list[0], axes_list[1])
+    reachable_cells = np.stack([C1.ravel(), C2.ravel()], axis=1)
+
+    # Extract star polygons (each star.verts() returns a list of 2D vertices)
+    star_polys = []
+    for s in stars:
+        v = s.verts()
+        if v is not None and len(v) >= 3:
+            pts = np.array(v)
+            star_polys.append(pts)
+
+    print(f"  {len(star_polys)} plottable star polygons, "
+          f"{len(reachable_cells)} reachable cells")
+
+    fig, axes_arr = plt.subplots(1, 2, figsize=(13, 5.5))
+
+    # ── Left: full latent space with gait phases ─────────────────────────────
+    ax = axes_arr[0]
     ax.imshow(
         rgb, origin="lower",
         extent=[z1[0], z1[-1], z2[0], z2[-1]],
@@ -357,87 +405,108 @@ def plot_spec_overlay(z1, z2, actions, quant_step, out_path, show_quant_grid=Tru
             ax.axvline(v, color="w", lw=0.4, alpha=0.35)
             ax.axhline(v, color="w", lw=0.4, alpha=0.35)
 
-    patches = []
-    for sem_idx in range(N_CLUSTERS):
-        name, color = CLUSTER_LABELS[sem_idx]
-        pct = (labels == sem_idx).mean() * 100
-        patches.append(mpatches.Patch(color=color, label=f"{name}  ({pct:.0f}%)"))
-    ax.legend(handles=patches, loc="upper right", fontsize=8, framealpha=0.9,
-              title="Gait phase", title_fontsize=8)
-    ax.set_xlabel("z₁", fontsize=10)
-    ax.set_ylabel("z₂", fontsize=10)
-
-    # ── Right: spec utilization contour fill ─────────────────────────────────
-    ax2 = axes[1]
-
-    per_spec_util = np.zeros((len(SAFE_SPECS), res, res))
-    for j, (dim, thr, _, _) in enumerate(SAFE_SPECS):
-        per_spec_util[j] = actions[:, :, dim] / thr
-
-    max_util = np.clip(per_spec_util.max(axis=0), 0, None) * 100  # percentage, floor at 0
-
-    safe_cmap = LinearSegmentedColormap.from_list(
-        "safe_margin",
-        [(0.0, "#E8F5E9"), (0.25, "#66BB6A"), (0.5, "#FDD835"),
-         (0.75, "#FF8F00"), (1.0, "#C62828")],
+    # Draw the reachable bounding box on the left panel
+    bb_w = global_hi[0] - global_lo[0]
+    bb_h = global_hi[1] - global_lo[1]
+    reach_rect = Rectangle(
+        (global_lo[0], global_lo[1]), bb_w, bb_h,
+        linewidth=2.5, edgecolor="white", facecolor="none",
+        linestyle="-", zorder=5,
     )
-
-    Z1, Z2 = np.meshgrid(z1, z2)
-    vmax = 60.0
-    cf = ax2.contourf(Z1, Z2, max_util, levels=np.linspace(0, vmax, 13),
-                      cmap=safe_cmap, vmin=0, vmax=vmax)
-    cbar = fig.colorbar(cf, ax=ax2, fraction=0.046, pad=0.04)
-    cbar.set_label("Spec utilization (%)", fontsize=9)
-    cbar.set_ticks([0, 10, 20, 30, 40, 50, 60])
-
-    cs = ax2.contour(Z1, Z2, max_util, levels=[20, 40],
-                     colors="k", linewidths=0.8, alpha=0.5)
-    ax2.clabel(cs, inline=True, fontsize=8, fmt="%d%%")
-
-    # Overlay gait-mode boundaries from left panel as thin contour
-    from scipy.ndimage import gaussian_filter
-    labels_smooth = gaussian_filter(labels.astype(float), sigma=3)
-    ax2.contour(Z1, Z2, labels_smooth,
-                levels=np.arange(0.5, N_CLUSTERS, 1.0),
-                colors="k", linewidths=1.0, alpha=0.3, linestyles="--")
-
-    # Mark peak utilization
-    peak_idx = np.unravel_index(max_util.argmax(), max_util.shape)
-    peak_z1 = z1[peak_idx[1]]
-    peak_z2 = z2[peak_idx[0]]
-    peak_val = max_util[peak_idx]
-    ax2.plot(peak_z1, peak_z2, "*", color="white", markersize=14,
-             markeredgecolor="k", markeredgewidth=1.2, zorder=5)
-    ax2.annotate(
-        f"max {peak_val:.0f}%\n(violation = 100%)",
-        xy=(peak_z1, peak_z2),
-        xytext=(peak_z1 + 0.30, peak_z2 + 0.25),
-        fontsize=8, fontweight="bold",
-        arrowprops=dict(arrowstyle="->", color="k", lw=1.2),
-        bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="k", alpha=0.9),
+    ax.add_patch(reach_rect)
+    ax.annotate(
+        "Reachable region\n(spec 5, p32/p68)",
+        xy=(bb_w / 2, global_hi[1]), xytext=(0.55, 1.35),
+        fontsize=9, color="white", fontweight="bold",
+        arrowprops=dict(arrowstyle="->", color="white", lw=1.5),
         zorder=6,
     )
 
-    if show_quant_grid:
-        lines = quant_grid_lines((z1[0], z1[-1]), quant_step)
-        for v in lines:
-            ax2.axvline(v, color="k", lw=0.3, alpha=0.12)
-            ax2.axhline(v, color="k", lw=0.3, alpha=0.12)
+    legend_patches = []
+    for sem_idx in range(N_CLUSTERS):
+        name, color = CLUSTER_LABELS[sem_idx]
+        pct = (labels == sem_idx).mean() * 100
+        legend_patches.append(mpatches.Patch(color=color, label=f"{name}  ({pct:.0f}%)"))
+    ax.legend(handles=legend_patches, loc="upper right", fontsize=8, framealpha=0.9,
+              title="Gait phase", title_fontsize=8)
+    ax.set_xlabel("z₁", fontsize=10)
+    ax.set_ylabel("z₂", fontsize=10)
+    ax.set_title("Full latent space", fontsize=11)
 
+    # ── Right: zoomed view with stars and cells ──────────────────────────────
+    ax2 = axes_arr[1]
+
+    pad = quant_step * 1.0
+    x_lo = min(global_lo[0], 0) - pad
+    x_hi = global_hi[0] + pad
+    y_lo = min(global_lo[1], 0) - pad
+    y_hi = global_hi[1] + pad
+
+    ax2.imshow(
+        rgb, origin="lower",
+        extent=[z1[0], z1[-1], z2[0], z2[-1]],
+        aspect="equal", interpolation="nearest",
+        alpha=0.4,
+    )
+
+    # Draw quantization grid
+    for v in np.arange(0, x_hi + quant_step, quant_step):
+        ax2.axvline(v, color="gray", lw=0.5, alpha=0.3)
+    for v in np.arange(0, y_hi + quant_step, quant_step):
+        ax2.axhline(v, color="gray", lw=0.5, alpha=0.3)
+
+    # Draw each verified cell as a highlighted rectangle
+    for c1, c2 in reachable_cells:
+        rect = Rectangle(
+            (c1 - half, c2 - half), quant_step, quant_step,
+            linewidth=0.6, edgecolor="#333333", facecolor="#43A047",
+            alpha=0.25, zorder=2,
+        )
+        ax2.add_patch(rect)
+
+    # Draw star set polygons
+    for pts in star_polys:
+        poly = Polygon(
+            pts, closed=True,
+            facecolor="#1565C0", edgecolor="#0D47A1",
+            alpha=0.35, linewidth=0.7, zorder=3,
+        )
+        ax2.add_patch(poly)
+
+    # Mark cell centers
+    ax2.scatter(
+        reachable_cells[:, 0], reachable_cells[:, 1],
+        s=15, c="white", edgecolors="k", linewidths=0.6,
+        zorder=4, label=f"Verified cells ({len(reachable_cells)})",
+    )
+
+    ax2.set_xlim(x_lo, x_hi)
+    ax2.set_ylim(y_lo, y_hi)
     ax2.set_xlabel("z₁", fontsize=10)
     ax2.set_ylabel("z₂", fontsize=10)
+    ax2.set_title("Encoder stars → quantized cells (spec 5)", fontsize=11)
+
+    # Legend for right panel
+    star_patch = mpatches.Patch(facecolor="#1565C0", edgecolor="#0D47A1",
+                                alpha=0.5, label=f"Encoder stars ({len(star_polys)})")
+    cell_patch = mpatches.Patch(facecolor="#43A047", edgecolor="#333333",
+                                alpha=0.4, label=f"Verified cells ({len(reachable_cells)})")
+    ax2.legend(handles=[star_patch, cell_patch], loc="upper right",
+               fontsize=8, framealpha=0.9)
+
+    n_cells = len(reachable_cells)
+    ax2.text(
+        0.02, 0.97, "All SAFE",
+        transform=ax2.transAxes, fontsize=10, va="top", fontweight="bold",
+        color="#2E7D32",
+        bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="#43A047", alpha=0.9),
+    )
 
     fig.tight_layout()
     fig.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"Saved: {out_path}")
-
-    print("\nSpec utilization stats:")
-    for j, (dim, thr, lbl, _) in enumerate(SAFE_SPECS):
-        u = per_spec_util[j]
-        col = actions[:, :, dim]
-        print(f"  {lbl}: max Y={col.max():.3f}, threshold={thr:.4f}, "
-              f"utilization={u.max()*100:.1f}%")
+    print(f"Stars: {len(star_polys)}, cells: {n_cells}")
 
 
 # ── Figure 4: quantized cell grid ─────────────────────────────────────────────

@@ -1,0 +1,30 @@
+=== alpha-beta CROWN: HalfCheetah-v4 latent3 spec_6 ===
+onnx: sac_sweep_runs/HalfCheetah-v4/latent3/seed0/full_network.onnx
+spec: paper_specs/HalfCheetah-v4/spec_6.vnnlib
+timeout: 600
+
+INFO     04:16:18     [tensor_storage.py:70] Hugepage enabled for branch-and-bound domains.
+/home/andg/anaconda3/envs/quant-env/lib/python3.11/site-packages/onnx2pytorch/convert/operations.py:154: UserWarning: The given NumPy array is not writable, and PyTorch does not support non-writable tensors. This means writing to this tensor will result in undefined behavior. You may want to copy the array to protect its data or make it writable before converting it to a tensor. This type of warning will be suppressed for the rest of this program. (Triggered internally at /pytorch/torch/csrc/utils/tensor_numpy.cpp:203.)
+  weight = torch.from_numpy(numpy_helper.to_array(params[0]))
+/home/andg/anaconda3/envs/quant-env/lib/python3.11/site-packages/onnx2pytorch/convert/model.py:151: UserWarning: Using experimental implementation that allows 'batch_size > 1'.Batchnorm layers could potentially produce false outputs.
+  warnings.warn(
+Precompiled vnnlib file found at /home/andg/Andrew/Fall2025/QuantizedVerification/paper_specs/HalfCheetah-v4/spec_6.vnnlib.compiled
+Loading onnx /home/andg/Andrew/Fall2025/QuantizedVerification/sac_sweep_runs/HalfCheetah-v4/latent3/seed0/full_network.onnx with quirks {}
+Finished onnx model loading in 0.0102 seconds
+Attack parameters: initialization=uniform, steps=100, restarts=30, alpha=0.06881249696016312, GAMA=False
+PGD attack margin (first 2 examples and 10 specs):
+ tensor([[1.97060275]], device='cuda:0')
+Total number of violation:  0
+Processing batch 1/1...
+  0%|          | 0/100 [00:00<?, ?it/s] 33%|███▎      | 33/100 [00:00<00:00, 394.21it/s]
+pgd early stop
+PGD attack margin (first 2 examples and 10 specs):
+ tensor([[-0.00321233]], device='cuda:0')
+Total number of violation:  1
+Attack finished in 0.1926 seconds.
+PGD attack succeeded!
+
+Checking and Saving Counterexample in check_and_save_cex
+
+verified_status unsafe-pgd
+verified_success True

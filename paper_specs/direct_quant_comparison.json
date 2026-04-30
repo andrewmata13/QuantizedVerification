@@ -1,0 +1,17 @@
+{
+  "n_obs": 17,
+  "n_latent": 3,
+  "baseline_reward_mean": 15264.9,
+  "baseline_reward_std": 57.2,
+  "direct_quant_step": 0.1,
+  "direct_quant_reward_mean": 11254.8,
+  "direct_quant_reward_std": 2489.4,
+  "direct_quant_pct_of_baseline": 73.7,
+  "direct_total_cells_full_box": "8.13e+26",
+  "direct_total_cells_easy_10pct": "8.85e+10",
+  "direct_total_cells_hard_20pct": "3.67e+15",
+  "bottleneck_quant_step": 0.05,
+  "bottleneck_total_cells": 225318,
+  "bottleneck_quant_reward_mean": 12813.6,
+  "bottleneck_quant_reward_std": 639.9
+}

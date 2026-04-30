@@ -1,0 +1,29 @@
+=== nnenum (control): Hopper-v5 baseline spec_4 ===
+onnx: sac_sweep_runs/Hopper-v5/baseline512/seed0/full_network.onnx
+spec: paper_specs/Hopper-v5/spec_4.vnnlib
+timeout: 600
+
+Running in parallel with 32 processes
+Found unsafe from second concrete execution of abstract counterexample
+
+violation star found a confirmed counterexample.
+
+Unsafe Base Branch: +++-++++-++++-+-+++++-+++++---+++--+- (Mode: 0)
+(0.0 sec) Q: 0, Sets: 0/1  (0.0%) ETA: - (expected 1 stars)   
+(0.1 sec) Q: 7, Sets: 0/14  (0.0%) ETA: - (expected 1 stars)   
+(0.2 sec) Q: 20, Sets: 34/280  (0.045%) ETA: 9.15 min (expected 75152 stars)   (0.3 sec) Q: 20, Sets: 188/654  (0.067%) ETA: 8.65 min (expected 279283 stars)   
+(0.5 sec) Q: 20, Sets: 487/998  (0.083%) ETA: 9.1 min (expected 586973 stars)   (0.6 sec) Q: 20, Sets: 801/1336  (0.103%) ETA: 9.1 min (expected 775927 stars)   (0.7 sec) Q: 20, Sets: 1099/1618  (0.109%) ETA: 10.16 min (expected 1009190 stars)   (0.8 sec) Q: 20, Sets: 1416/1940  (0.113%) ETA: 11.27 min (expected 1250904 stars)   
+(0.9 sec) Q: 20, Sets: 1729/2249  (0.118%) ETA: 12.27 min (expected 1468493 stars)   (1.0 sec) Q: 20, Sets: 2045/2579  (0.123%) ETA: 13.09 min (expected 1659083 stars)   (1.1 sec) Q: 20, Sets: 2372/2902  (0.136%) ETA: 13.2 min (expected 1742670 stars)   (1.2 sec) Q: 20, Sets: 2676/3223  (0.138%) ETA: 14.31 min (expected 1944417 stars)   (1.3 sec) Q: 20, Sets: 3010/3538  (0.14%) ETA: 15.22 min (expected 2143389 stars)   (1.4 sec) Q: 20, Sets: 3326/3867  (0.143%) ETA: 16.19 min (expected 2322596 stars)   (1.5 sec) Q: 20, Sets: 3640/4181  (0.146%) ETA: 17.08 min (expected 2500247 stars)   (1.6 sec) Q: 20, Sets: 3924/4474  (0.147%) ETA: 18.07 min (expected 2667218 stars)   
+(1.7 sec) Q: 20, Sets: 4287/4821  (0.149%) ETA: 19.04 min (expected 2871839 stars)   (1.8 sec) Q: 20, Sets: 4610/5167  (0.151%) ETA: 19.99 min (expected 3051973 stars)   (1.9 sec) Q: 20, Sets: 4962/5526  (0.152%) ETA: 21.04 min (expected 3261238 stars)   (2.0 sec) Q: 20, Sets: 5264/5811  (0.154%) ETA: 21.83 min (expected 3411670 stars)   (2.1 sec) Q: 20, Sets: 5640/6196  (0.156%) ETA: 22.92 min (expected 3618018 stars)   (2.3 sec) Q: 20, Sets: 5962/6512  (0.157%) ETA: 23.93 min (expected 3803658 stars)   (2.4 sec) Q: 20, Sets: 6281/6837  (0.16%) ETA: 24.5 min (expected 3926134 stars)   (2.5 sec) Q: 20, Sets: 6661/7216  (0.163%) ETA: 25.27 min (expected 4088980 stars)   (2.6 sec) Q: 20, Sets: 6957/7522  (0.166%) ETA: 25.9 min (expected 4200061 stars)   (2.7 sec) Q: 20, Sets: 7296/7849  (0.17%) ETA: 26.3 min (expected 4303380 stars)   (2.8 sec) Q: 20, Sets: 7699/8253  (0.171%) ETA: 27.19 min (expected 4502329 stars)   (2.9 sec) Q: 20, Sets: 7980/8528  (0.173%) ETA: 27.9 min (expected 4621107 stars)   (3.0 sec) Q: 20, Sets: 8282/8842  (0.174%) ETA: 28.66 min (expected 4756262 stars)   (3.1 sec) Q: 20, Sets: 8620/9168  (0.177%) ETA: 29.12 min (expected 4862745 stars)   (3.2 sec) Q: 20, Sets: 8898/9470  (0.181%) ETA: 29.51 min (expected 4919477 stars)   (3.3 sec) Q: 20, Sets: 9200/9755  (0.183%) ETA: 30.26 min (expected 5034707 stars)   
+(3.4 sec) Q: 20, Sets: 9500/10061  (0.185%) ETA: 30.91 min (expected 5133987 stars)   (3.5 sec) Q: 20, Sets: 9855/10386  (0.187%) ETA: 31.43 min (expected 5258859 stars)   (3.6 sec) Q: 20, Sets: 10160/10698  (0.191%) ETA: 31.74 min (expected 5320792 stars)   (3.8 sec) Q: 20, Sets: 10556/11094  (0.192%) ETA: 32.57 min (expected 5509165 stars)   (3.9 sec) Q: 20, Sets: 10907/11457  (0.192%) ETA: 33.41 min (expected 5669862 stars)   (4.0 sec) Q: 20, Sets: 11204/11730  (0.194%) ETA: 34.02 min (expected 5779265 stars)   (4.1 sec) Q: 20, Sets: 11526/12056  (0.195%) ETA: 34.64 min (expected 5901961 stars)   (4.2 sec) Q: 20, Sets: 11878/12421  (0.216%) ETA: 32.23 min (expected 5511823 stars)   (4.3 sec) Q: 20, Sets: 12184/12731  (0.222%) ETA: 32.05 min (expected 5484565 stars)   (4.4 sec) Q: 20, Sets: 12579/13123  (0.225%) ETA: 32.39 min (expected 5586274 stars)   (4.5 sec) Q: 20, Sets: 12931/13492  (0.228%) ETA: 32.78 min (expected 5674998 stars)   (4.6 sec) Q: 20, Sets: 13275/13837  (0.23%) ETA: 33.24 min (expected 5775279 stars)   (4.7 sec) Q: 20, Sets: 13638/14176  (0.231%) ETA: 33.84 min (expected 5904847 stars)   (4.8 sec) Q: 20, Sets: 13940/14506  (0.233%) ETA: 34.3 min (expected 5987031 stars)   
+
+
+Total Stars: 14128 (448 exact, 13680 approx)
+Runtime: 4.9 sec
+Completed work frac: 0.0023318277671933174
+Num Stars Copied Between Processes: 51
+Num Lps During Enumeration: 19184
+Total Num Lps: 19184
+
+Result: network is UNSAFE with confirmed counterexample in result.cinput and result.coutput
+Output: [2.619257688522339, 0.8883505463600159, -2.3223719596862793]

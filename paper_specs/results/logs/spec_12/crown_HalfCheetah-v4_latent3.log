@@ -1,0 +1,558 @@
+=== alpha-beta CROWN: HalfCheetah-v4 latent3 spec_12 ===
+onnx: sac_sweep_runs/HalfCheetah-v4/latent3/seed0/full_network.onnx
+spec: paper_specs/HalfCheetah-v4/spec_12.vnnlib
+timeout: 600
+
+INFO     05:50:07     [tensor_storage.py:70] Hugepage enabled for branch-and-bound domains.
+/home/andg/anaconda3/envs/quant-env/lib/python3.11/site-packages/onnx2pytorch/convert/operations.py:154: UserWarning: The given NumPy array is not writable, and PyTorch does not support non-writable tensors. This means writing to this tensor will result in undefined behavior. You may want to copy the array to protect its data or make it writable before converting it to a tensor. This type of warning will be suppressed for the rest of this program. (Triggered internally at /pytorch/torch/csrc/utils/tensor_numpy.cpp:203.)
+  weight = torch.from_numpy(numpy_helper.to_array(params[0]))
+/home/andg/anaconda3/envs/quant-env/lib/python3.11/site-packages/onnx2pytorch/convert/model.py:151: UserWarning: Using experimental implementation that allows 'batch_size > 1'.Batchnorm layers could potentially produce false outputs.
+  warnings.warn(
+Precompiled vnnlib file found at /home/andg/Andrew/Fall2025/QuantizedVerification/paper_specs/HalfCheetah-v4/spec_12.vnnlib.compiled
+Loading onnx /home/andg/Andrew/Fall2025/QuantizedVerification/sac_sweep_runs/HalfCheetah-v4/latent3/seed0/full_network.onnx with quirks {}
+Finished onnx model loading in 0.0103 seconds
+Attack parameters: initialization=uniform, steps=100, restarts=30, alpha=0.13763749599456787, GAMA=False
+PGD attack margin (first 2 examples and 10 specs):
+ tensor([[1.70171225]], device='cuda:0')
+Total number of violation:  0
+Processing batch 1/1...
+  0%|          | 0/100 [00:00<?, ?it/s] 52%|█████▏    | 52/100 [00:00<00:00, 518.42it/s]100%|██████████| 100/100 [00:00<00:00, 634.42it/s]
+PGD attack margin (first 2 examples and 10 specs):
+ tensor([[0.90667939]], device='cuda:0')
+Total number of violation:  0
+Attack finished in 0.2676 seconds.
+PGD attack failed
+verified_status unknown
+verified_success False
+Model: BoundedModule(
+  (/0): BoundInput(name=/0, inputs=[], perturbed=True)
+  (/11): BoundParams(name=/11, inputs=[], perturbed=False)
+  (/12): BoundParams(name=/12, inputs=[], perturbed=False)
+  (/13): BoundParams(name=/13, inputs=[], perturbed=False)
+  (/14): BoundParams(name=/14, inputs=[], perturbed=False)
+  (/15): BoundParams(name=/15, inputs=[], perturbed=False)
+  (/16): BoundParams(name=/16, inputs=[], perturbed=False)
+  (/17): BoundParams(name=/17, inputs=[], perturbed=False)
+  (/18): BoundParams(name=/18, inputs=[], perturbed=False)
+  (/19): BoundParams(name=/19, inputs=[], perturbed=False)
+  (/20): BoundParams(name=/20, inputs=[], perturbed=False)
+  (/input): BoundLinear(name=/input, inputs=[/0, /11, /12], perturbed=True)
+  (/22): BoundRelu(name=/22, inputs=[/input], perturbed=True)
+  (/input-3): BoundLinear(name=/input-3, inputs=[/22, /13, /14], perturbed=True)
+  (/24): BoundRelu(name=/24, inputs=[/input-3], perturbed=True)
+  (/input-7): BoundLinear(name=/input-7, inputs=[/24, /15, /16], perturbed=True)
+  (/26): BoundRelu(name=/26, inputs=[/input-7], perturbed=True)
+  (/input-11): BoundLinear(name=/input-11, inputs=[/26, /17, /18], perturbed=True)
+  (/28): BoundRelu(name=/28, inputs=[/input-11], perturbed=True)
+  (/29): BoundLinear(name=/29, inputs=[/28, /19, /20], perturbed=True)
+)
+Original output in the first batch: tensor([[-1.71889615, -1.81379914, -1.35202479,  0.58656406,  1.34360826,
+         -0.37066925]], device='cuda:0')
+build batch [1/1]
+initial crown bounds (first 10 items): [-888.2837524414062]
+Global lower bound: -888.2837524414062
+0 / 1 OR specs are verified.
+Verified OR indices (first 10 items): []
+Verified OR lbs (first 10 items): []
+Unverified OR indices (first 10 items): [0]
+Unverified OR lbs (first 10 items): [[-888.2837524414062]]
+###### Verifying property Instance 0 ######
+Batch size: 1
+First 10 spec matrices
+C: tensor([[[ 0.,  0.,  0.,  0.,  0., -1.]]], device='cuda:0')
+RHS: tensor([[-3.26477695]], device='cuda:0')
+OR spec sizes: tensor([1], device='cuda:0', dtype=torch.int32)
+Remaining timeout: 599.4845373630524
+Model prediction is: tensor([-1.71889615, -1.81379914, -1.35202479,  0.58656406,  1.34360826,
+        -0.37066925], device='cuda:0')
+Iteration 1
+  0%|          | 0/5 [00:00<?, ?it/s]100%|██████████| 5/5 [00:00<00:00, 355.23it/s]
+PGD attack margin (first 2 examples and 10 specs):
+ tensor([[1.04914856, 1.01405454]], device='cuda:0')
+Total number of violation:  0
+Current pickout batch: 1
+Worst bound: tensor([-481.89617920], device='cuda:0')
+Time: adv_check 0.0178    pickout 0.0003    split 0.0042    init 0.0001    concretize 0.0001    bounding 0.0490    filtering 0.0001    decision 0.0001    add_domain 0.0002    summary 0.0008    
+Accumulated time: adv_check 0.0178    pickout 0.0003    split 0.0042    bounding 0.0490    init 0.0005    concretize 0.0005    filtering 0.0001    decision 0.0001    add_domain 0.0002    summary 0.0008    
+Length of domains: 16
+17 domains visited
+Current (lb-rhs): tensor([[-481.89617920]], device='cuda:0')
+Cumulative time: 0.09010934829711914
+
+Iteration 2
+  0%|          | 0/5 [00:00<?, ?it/s]100%|██████████| 5/5 [00:00<00:00, 428.77it/s]
+PGD attack margin (first 2 examples and 10 specs):
+ tensor([[1.05238366, 1.62618423, 1.12839246, 1.93608332, 1.04922915, 1.78031504,
+         1.84098589, 1.05448174, 1.63225448, 1.94556510]], device='cuda:0')
+Total number of violation:  0
+Current pickout batch: 16
+Worst bound: tensor([-471.70565796], device='cuda:0')
+Time: adv_check 0.0138    pickout 0.0001    split 0.0003    init 0.0001    concretize 0.0001    bounding 0.0086    filtering 0.0001    decision 0.0001    add_domain 0.0001    summary 0.0002    
+Accumulated time: adv_check 0.0316    pickout 0.0005    split 0.0044    bounding 0.0576    init 0.0010    concretize 0.0010    filtering 0.0002    decision 0.0002    add_domain 0.0003    summary 0.0010    
+Length of domains: 32
+49 domains visited
+Current (lb-rhs): tensor([[-471.70565796]], device='cuda:0')
+Cumulative time: 0.11368489265441895
+
+Iteration 3
+  0%|          | 0/5 [00:00<?, ?it/s]100%|██████████| 5/5 [00:00<00:00, 739.40it/s]
+PGD attack margin (first 2 examples and 10 specs):
+ tensor([[1.75151670, 1.32834339, 1.12132502, 1.27672446, 1.34260392, 1.42719710,
+         1.54650748, 1.05962491, 2.00018263, 1.00878835]], device='cuda:0')
+Total number of violation:  0
+Current pickout batch: 32
+Worst bound: tensor([-430.70416260], device='cuda:0')
+Time: adv_check 0.0082    pickout 0.0001    split 0.0003    init 0.0001    concretize 0.0001    bounding 0.0140    filtering 0.0001    decision 0.0001    add_domain 0.0002    summary 0.0002    
+Accumulated time: adv_check 0.0398    pickout 0.0006    split 0.0047    bounding 0.0716    init 0.0015    concretize 0.0015    filtering 0.0002    decision 0.0003    add_domain 0.0005    summary 0.0012    
+Length of domains: 64
+113 domains visited
+Current (lb-rhs): tensor([[-430.70416260]], device='cuda:0')
+Cumulative time: 0.1371138095855713
+
+Iteration 4
+  0%|          | 0/5 [00:00<?, ?it/s]100%|██████████| 5/5 [00:00<00:00, 578.88it/s]
+PGD attack margin (first 2 examples and 10 specs):
+ tensor([[1.08526540, 1.07341242, 1.11108232, 1.92047286, 1.86596000, 1.03125787,
+         1.50902462, 1.08889079, 1.24969840, 1.14103293]], device='cuda:0')
+Total number of violation:  0
+Current pickout batch: 64
+Worst bound: tensor([-418.09606934], device='cuda:0')
+Time: adv_check 0.0112    pickout 0.0003    split 0.0008    init 0.0001    concretize 0.0001    bounding 0.0340    filtering 0.0001    decision 0.0001    add_domain 0.0001    summary 0.0002    
+Accumulated time: adv_check 0.0511    pickout 0.0009    split 0.0055    bounding 0.1057    init 0.0022    concretize 0.0022    filtering 0.0003    decision 0.0003    add_domain 0.0006    summary 0.0014    
+Length of domains: 128
+241 domains visited
+Current (lb-rhs): tensor([[-418.09606934]], device='cuda:0')
+Cumulative time: 0.18425345420837402
+
+Iteration 5
+  0%|          | 0/5 [00:00<?, ?it/s]100%|██████████| 5/5 [00:00<00:00, 432.08it/s]
+PGD attack margin (first 2 examples and 10 specs):
+ tensor([[1.13522840, 1.58077168, 1.12018514, 1.58731771, 1.61739492, 1.62672651,
+         1.57098389, 1.03051686, 1.73006880, 1.52183199]], device='cuda:0')
+Total number of violation:  0
+Current pickout batch: 128
+Worst bound: tensor([-393.99414062], device='cuda:0')
+Time: adv_check 0.0131    pickout 0.0001    split 0.0003    init 0.0001    concretize 0.0001    bounding 0.0606    filtering 0.0001    decision 0.0001    add_domain 0.0002    summary 0.0002    
+Accumulated time: adv_check 0.0642    pickout 0.0010    split 0.0058    bounding 0.1662    init 0.0028    concretize 0.0028    filtering 0.0003    decision 0.0004    add_domain 0.0008    summary 0.0016    
+Length of domains: 256
+497 domains visited
+Current (lb-rhs): tensor([[-393.99414062]], device='cuda:0')
+Cumulative time: 0.2592337131500244
+
+Iteration 6
+  0%|          | 0/5 [00:00<?, ?it/s]100%|██████████| 5/5 [00:00<00:00, 640.27it/s]
+PGD attack margin (first 2 examples and 10 specs):
+ tensor([[2.26344681, 2.03513527, 1.12296081, 1.37729120, 1.43079472, 1.76525331,
+         1.07743335, 1.16213489, 1.05625653, 1.36414874]], device='cuda:0')
+Total number of violation:  0
+Current pickout batch: 256
+Worst bound: tensor([-372.09902954], device='cuda:0')
+Time: adv_check 0.0096    pickout 0.0002    split 0.0004    init 0.0001    concretize 0.0001    bounding 0.1202    filtering 0.0001    decision 0.0001    add_domain 0.0002    summary 0.0002    
+Accumulated time: adv_check 0.0738    pickout 0.0012    split 0.0062    bounding 0.2864    init 0.0033    concretize 0.0033    filtering 0.0004    decision 0.0005    add_domain 0.0010    summary 0.0019    
+Length of domains: 512
+1009 domains visited
+Current (lb-rhs): tensor([[-372.09902954]], device='cuda:0')
+current_vram/total_varm: 4.3GB/16.7GB, batch_size increase to 512
+Cumulative time: 0.3905174732208252
+
+Iteration 7
+  0%|          | 0/5 [00:00<?, ?it/s]100%|██████████| 5/5 [00:00<00:00, 633.33it/s]
+PGD attack margin (first 2 examples and 10 specs):
+ tensor([[1.48334563, 1.72152114, 1.12833476, 1.84272146, 1.36861408, 2.36542463,
+         1.33649004, 1.33826208, 1.86558604, 1.95786369]], device='cuda:0')
+Total number of violation:  0
+Current pickout batch: 512
+Worst bound: tensor([-343.36395264], device='cuda:0')
+Time: adv_check 0.0097    pickout 0.0002    split 0.0004    init 0.0001    concretize 0.0001    bounding 0.2385    filtering 0.0001    decision 0.0001    add_domain 0.0002    summary 0.0002    
+Accumulated time: adv_check 0.0835    pickout 0.0013    split 0.0065    bounding 0.5249    init 0.0038    concretize 0.0038    filtering 0.0005    decision 0.0005    add_domain 0.0012    summary 0.0021    
+Length of domains: 1024
+2033 domains visited
+Current (lb-rhs): tensor([[-343.36395264]], device='cuda:0')
+Cumulative time: 0.6402311325073242
+
+Iteration 8
+  0%|          | 0/5 [00:00<?, ?it/s]100%|██████████| 5/5 [00:00<00:00, 437.08it/s]
+PGD attack margin (first 2 examples and 10 specs):
+ tensor([[1.97222197, 2.31586432, 1.91732657, 1.46117389, 1.68823874, 1.88533378,
+         1.30080485, 1.46117389, 1.58503854, 1.74312842]], device='cuda:0')
+Total number of violation:  0
+Current pickout batch: 512
+Worst bound: tensor([-331.80761719], device='cuda:0')
+Time: adv_check 0.0131    pickout 0.0001    split 0.0003    init 0.0001    concretize 0.0001    bounding 0.2368    filtering 0.0001    decision 0.0001    add_domain 0.0016    summary 0.0003    
+Accumulated time: adv_check 0.0965    pickout 0.0015    split 0.0068    bounding 0.7617    init 0.0043    concretize 0.0043    filtering 0.0005    decision 0.0006    add_domain 0.0029    summary 0.0024    
+Length of domains: 1536
+3057 domains visited
+Current (lb-rhs): tensor([[-341.45599365]], device='cuda:0')
+Cumulative time: 0.8930368423461914
+
+Iteration 9
+  0%|          | 0/5 [00:00<?, ?it/s]100%|██████████| 5/5 [00:00<00:00, 665.76it/s]
+PGD attack margin (first 2 examples and 10 specs):
+ tensor([[1.18116164, 1.74256372, 2.32825422, 2.01270151, 1.64401388, 1.78712118,
+         1.44937384, 1.18770194, 1.27451968, 1.87487781]], device='cuda:0')
+Total number of violation:  0
+Current pickout batch: 512
+Worst bound: tensor([-328.73022461], device='cuda:0')
+Time: adv_check 0.0091    pickout 0.0001    split 0.0003    init 0.0001    concretize 0.0001    bounding 0.2364    filtering 0.0001    decision 0.0001    add_domain 0.0002    summary 0.0002    
+Accumulated time: adv_check 0.1057    pickout 0.0016    split 0.0072    bounding 0.9981    init 0.0048    concretize 0.0048    filtering 0.0006    decision 0.0007    add_domain 0.0031    summary 0.0026    
+Length of domains: 2048
+4081 domains visited
+Current (lb-rhs): tensor([[-341.45599365]], device='cuda:0')
+Cumulative time: 1.1399877071380615
+
+Iteration 10
+  0%|          | 0/5 [00:00<?, ?it/s]100%|██████████| 5/5 [00:00<00:00, 457.91it/s]
+PGD attack margin (first 2 examples and 10 specs):
+ tensor([[1.45740640, 1.81527448, 1.77021146, 2.00240850, 1.63214433, 1.47463906,
+         1.63196254, 1.31421459, 1.87487781, 1.23124075]], device='cuda:0')
+Total number of violation:  0
+Current pickout batch: 512
+Worst bound: tensor([-315.68518066], device='cuda:0')
+Time: adv_check 0.0125    pickout 0.0001    split 0.0003    init 0.0001    concretize 0.0001    bounding 0.2362    filtering 0.0001    decision 0.0001    add_domain 0.0016    summary 0.0002    
+Accumulated time: adv_check 0.1181    pickout 0.0017    split 0.0075    bounding 1.2343    init 0.0052    concretize 0.0052    filtering 0.0006    decision 0.0008    add_domain 0.0047    summary 0.0028    
+Length of domains: 2560
+5105 domains visited
+Current (lb-rhs): tensor([[-341.45599365]], device='cuda:0')
+Cumulative time: 1.3914828300476074
+
+Iteration 11
+  0%|          | 0/5 [00:00<?, ?it/s]100%|██████████| 5/5 [00:00<00:00, 486.63it/s]
+PGD attack margin (first 2 examples and 10 specs):
+ tensor([[1.29348576, 1.31890666, 1.99866104, 2.33157921, 1.58277428, 2.26570177,
+         2.03908610, 1.47454154, 1.21471047, 1.29307783]], device='cuda:0')
+Total number of violation:  0
+Current pickout batch: 512
+Worst bound: tensor([-295.96536255], device='cuda:0')
+Time: adv_check 0.0128    pickout 0.0001    split 0.0003    init 0.0001    concretize 0.0001    bounding 0.2367    filtering 0.0001    decision 0.0001    add_domain 0.0002    summary 0.0003    
+Accumulated time: adv_check 0.1309    pickout 0.0019    split 0.0078    bounding 1.4710    init 0.0057    concretize 0.0057    filtering 0.0007    decision 0.0009    add_domain 0.0049    summary 0.0031    
+Length of domains: 3072
+6129 domains visited
+Current (lb-rhs): tensor([[-341.45599365]], device='cuda:0')
+Cumulative time: 1.642413854598999
+
+Iteration 12
+  0%|          | 0/5 [00:00<?, ?it/s]100%|██████████| 5/5 [00:00<00:00, 502.84it/s]
+PGD attack margin (first 2 examples and 10 specs):
+ tensor([[1.24151516, 1.30080485, 1.74501479, 2.11031842, 1.66871834, 2.23534656,
+         1.82977903, 2.08586836, 1.23124075, 1.39340317]], device='cuda:0')
+Total number of violation:  0
+Current pickout batch: 512
+Worst bound: tensor([-271.60452271], device='cuda:0')
+Time: adv_check 0.0126    pickout 0.0001    split 0.0003    init 0.0001    concretize 0.0001    bounding 0.2365    filtering 0.0001    decision 0.0001    add_domain 0.0002    summary 0.0003    
+Accumulated time: adv_check 0.1435    pickout 0.0020    split 0.0081    bounding 1.7075    init 0.0062    concretize 0.0062    filtering 0.0008    decision 0.0009    add_domain 0.0052    summary 0.0033    
+Length of domains: 3584
+7153 domains visited
+Current (lb-rhs): tensor([[-341.45599365]], device='cuda:0')
+Cumulative time: 1.8931949138641357
+
+Iteration 13
+  0%|          | 0/5 [00:00<?, ?it/s]100%|██████████| 5/5 [00:00<00:00, 395.19it/s]
+PGD attack margin (first 2 examples and 10 specs):
+ tensor([[1.37366271, 1.27398598, 1.51903522, 1.63719726, 1.82958877, 0.90837598,
+         1.26449275, 1.41925299, 1.61715388, 1.59971321]], device='cuda:0')
+Total number of violation:  0
+Current pickout batch: 512
+Worst bound: tensor([-247.27766418], device='cuda:0')
+Time: adv_check 0.0148    pickout 0.0001    split 0.0003    init 0.0001    concretize 0.0001    bounding 0.2370    filtering 0.0001    decision 0.0001    add_domain 0.0003    summary 0.0002    
+Accumulated time: adv_check 0.1583    pickout 0.0021    split 0.0084    bounding 1.9445    init 0.0066    concretize 0.0067    filtering 0.0008    decision 0.0010    add_domain 0.0054    summary 0.0036    
+Length of domains: 4096
+8177 domains visited
+Current (lb-rhs): tensor([[-341.45599365]], device='cuda:0')
+Cumulative time: 2.1465203762054443
+
+Iteration 14
+  0%|          | 0/5 [00:00<?, ?it/s]100%|██████████| 5/5 [00:00<00:00, 559.26it/s]
+PGD attack margin (first 2 examples and 10 specs):
+ tensor([[1.18718004, 1.28124511, 1.83097327, 1.98274195, 1.82540703, 2.01536512,
+         1.73623562, 1.65523136, 1.17425513, 1.69362617]], device='cuda:0')
+Total number of violation:  0
+Current pickout batch: 512
+Worst bound: tensor([-229.72421265], device='cuda:0')
+Time: adv_check 0.0112    pickout 0.0002    split 0.0004    init 0.0001    concretize 0.0001    bounding 0.2366    filtering 0.0001    decision 0.0001    add_domain 0.0020    summary 0.0002    
+Accumulated time: adv_check 0.1695    pickout 0.0023    split 0.0088    bounding 2.1811    init 0.0071    concretize 0.0071    filtering 0.0009    decision 0.0011    add_domain 0.0074    summary 0.0038    
+Length of domains: 4608
+9201 domains visited
+Current (lb-rhs): tensor([[-341.45599365]], device='cuda:0')
+Cumulative time: 2.3976268768310547
+
+Iteration 15
+  0%|          | 0/5 [00:00<?, ?it/s]100%|██████████| 5/5 [00:00<00:00, 623.76it/s]
+PGD attack margin (first 2 examples and 10 specs):
+ tensor([[1.31218445, 1.28124511, 2.17673635, 2.17410231, 1.32017553, 1.74753225,
+         1.36868250, 1.75673747, 1.13050580, 1.88739085]], device='cuda:0')
+Total number of violation:  0
+Current pickout batch: 512
+Worst bound: tensor([-214.99420166], device='cuda:0')
+Time: adv_check 0.0098    pickout 0.0001    split 0.0004    init 0.0001    concretize 0.0001    bounding 0.2368    filtering 0.0001    decision 0.0001    add_domain 0.0002    summary 0.0002    
+Accumulated time: adv_check 0.1793    pickout 0.0025    split 0.0091    bounding 2.4179    init 0.0076    concretize 0.0076    filtering 0.0009    decision 0.0012    add_domain 0.0076    summary 0.0040    
+Length of domains: 5120
+10225 domains visited
+Current (lb-rhs): tensor([[-341.45599365]], device='cuda:0')
+Cumulative time: 2.645839214324951
+
+Iteration 16
+  0%|          | 0/5 [00:00<?, ?it/s]100%|██████████| 5/5 [00:00<00:00, 630.97it/s]
+PGD attack margin (first 2 examples and 10 specs):
+ tensor([[1.18482757, 1.25475669, 1.77357876, 1.83351767, 1.57724464, 1.42338920,
+         1.31184065, 1.41667831, 1.90203607, 1.69362617]], device='cuda:0')
+Total number of violation:  0
+Current pickout batch: 512
+Worst bound: tensor([-198.99818420], device='cuda:0')
+Time: adv_check 0.0097    pickout 0.0002    split 0.0004    init 0.0001    concretize 0.0001    bounding 0.2367    filtering 0.0001    decision 0.0001    add_domain 0.0002    summary 0.0002    
+Accumulated time: adv_check 0.1891    pickout 0.0026    split 0.0095    bounding 2.6547    init 0.0080    concretize 0.0080    filtering 0.0010    decision 0.0012    add_domain 0.0079    summary 0.0043    
+Length of domains: 5632
+11249 domains visited
+Current (lb-rhs): tensor([[-341.45599365]], device='cuda:0')
+Cumulative time: 2.8938546180725098
+
+Iteration 17
+  0%|          | 0/5 [00:00<?, ?it/s]100%|██████████| 5/5 [00:00<00:00, 440.11it/s]
+PGD attack margin (first 2 examples and 10 specs):
+ tensor([[1.18116164, 1.26681364, 2.25442767, 1.81940126, 1.80895483, 0.90837598,
+         1.77338839, 1.54575312, 1.16291595, 2.23602104]], device='cuda:0')
+Total number of violation:  0
+Current pickout batch: 512
+Worst bound: tensor([-195.29421997], device='cuda:0')
+Time: adv_check 0.0131    pickout 0.0001    split 0.0003    init 0.0001    concretize 0.0001    bounding 0.2369    filtering 0.0001    decision 0.0001    add_domain 0.0002    summary 0.0003    
+Accumulated time: adv_check 0.2022    pickout 0.0028    split 0.0098    bounding 2.8916    init 0.0085    concretize 0.0085    filtering 0.0011    decision 0.0013    add_domain 0.0081    summary 0.0045    
+Length of domains: 6144
+12273 domains visited
+Current (lb-rhs): tensor([[-341.45599365]], device='cuda:0')
+Cumulative time: 3.1457159519195557
+
+Iteration 18
+  0%|          | 0/5 [00:00<?, ?it/s]100%|██████████| 5/5 [00:00<00:00, 370.92it/s]
+PGD attack margin (first 2 examples and 10 specs):
+ tensor([[1.18116164, 1.28124511, 2.01395488, 2.64416504, 1.53945673, 1.41585183,
+         1.16731572, 1.66925275, 1.78641272, 2.02990055]], device='cuda:0')
+Total number of violation:  0
+Current pickout batch: 512
+Worst bound: tensor([-181.76342773], device='cuda:0')
+Time: adv_check 0.0156    pickout 0.0001    split 0.0003    init 0.0001    concretize 0.0001    bounding 0.2365    filtering 0.0001    decision 0.0001    add_domain 0.0002    summary 0.0002    
+Accumulated time: adv_check 0.2178    pickout 0.0029    split 0.0101    bounding 3.1281    init 0.0090    concretize 0.0090    filtering 0.0011    decision 0.0014    add_domain 0.0083    summary 0.0048    
+Length of domains: 6656
+13297 domains visited
+Current (lb-rhs): tensor([[-341.45599365]], device='cuda:0')
+Cumulative time: 3.3992748260498047
+
+Iteration 19
+  0%|          | 0/5 [00:00<?, ?it/s]100%|██████████| 5/5 [00:00<00:00, 510.34it/s]
+PGD attack margin (first 2 examples and 10 specs):
+ tensor([[1.34772754, 1.75140965, 1.79813945, 1.53081751, 1.70501173, 1.41205418,
+         1.80277205, 1.66925275, 1.12321568, 1.59439433]], device='cuda:0')
+Total number of violation:  0
+Current pickout batch: 512
+Worst bound: tensor([-176.06068420], device='cuda:0')
+Time: adv_check 0.0114    pickout 0.0001    split 0.0003    init 0.0001    concretize 0.0001    bounding 0.2367    filtering 0.0001    decision 0.0001    add_domain 0.0002    summary 0.0003    
+Accumulated time: adv_check 0.2292    pickout 0.0030    split 0.0104    bounding 3.3648    init 0.0095    concretize 0.0095    filtering 0.0012    decision 0.0015    add_domain 0.0086    summary 0.0050    
+Length of domains: 7168
+14321 domains visited
+Current (lb-rhs): tensor([[-341.45599365]], device='cuda:0')
+Cumulative time: 3.6489522457122803
+
+Iteration 20
+  0%|          | 0/5 [00:00<?, ?it/s]100%|██████████| 5/5 [00:00<00:00, 578.01it/s]
+PGD attack margin (first 2 examples and 10 specs):
+ tensor([[1.18116164, 1.10167146, 2.41735220, 1.98274195, 1.53945673, 1.43417823,
+         1.80277205, 1.55415916, 1.20287776, 1.59971321]], device='cuda:0')
+Total number of violation:  0
+Current pickout batch: 512
+Worst bound: tensor([-169.11006165], device='cuda:0')
+Time: adv_check 0.0104    pickout 0.0001    split 0.0003    init 0.0001    concretize 0.0001    bounding 0.2364    filtering 0.0001    decision 0.0001    add_domain 0.0002    summary 0.0002    
+Accumulated time: adv_check 0.2395    pickout 0.0032    split 0.0108    bounding 3.6012    init 0.0099    concretize 0.0099    filtering 0.0013    decision 0.0016    add_domain 0.0088    summary 0.0053    
+Length of domains: 7680
+15345 domains visited
+Current (lb-rhs): tensor([[-341.45599365]], device='cuda:0')
+Cumulative time: 3.89715313911438
+
+Iteration 21
+  0%|          | 0/5 [00:00<?, ?it/s]100%|██████████| 5/5 [00:00<00:00, 742.07it/s]
+PGD attack margin (first 2 examples and 10 specs):
+ tensor([[1.24206710, 1.68965244, 2.08193350, 2.05445552, 1.40771067, 1.42338920,
+         1.49529207, 1.43101668, 1.14946127, 1.39852047]], device='cuda:0')
+Total number of violation:  0
+Current pickout batch: 512
+Worst bound: tensor([-155.04174805], device='cuda:0')
+Time: adv_check 0.0083    pickout 0.0001    split 0.0003    init 0.0001    concretize 0.0001    bounding 0.2366    filtering 0.0001    decision 0.0001    add_domain 0.0002    summary 0.0003    
+Accumulated time: adv_check 0.2478    pickout 0.0033    split 0.0111    bounding 3.8378    init 0.0104    concretize 0.0104    filtering 0.0013    decision 0.0016    add_domain 0.0091    summary 0.0055    
+Length of domains: 8192
+16369 domains visited
+Current (lb-rhs): tensor([[-341.45599365]], device='cuda:0')
+Cumulative time: 4.1434526443481445
+
+Iteration 22
+  0%|          | 0/5 [00:00<?, ?it/s]100%|██████████| 5/5 [00:00<00:00, 735.56it/s]
+PGD attack margin (first 2 examples and 10 specs):
+ tensor([[1.18116164, 1.46291018, 1.87850773, 2.01270151, 1.30146968, 1.72576487,
+         1.13169169, 1.55216098, 1.19843888, 1.92415404]], device='cuda:0')
+Total number of violation:  0
+Current pickout batch: 512
+Worst bound: tensor([-152.62255859], device='cuda:0')
+Time: adv_check 0.0083    pickout 0.0001    split 0.0003    init 0.0001    concretize 0.0001    bounding 0.2358    filtering 0.0001    decision 0.0001    add_domain 0.0022    summary 0.0002    
+Accumulated time: adv_check 0.2561    pickout 0.0034    split 0.0114    bounding 4.0735    init 0.0109    concretize 0.0109    filtering 0.0014    decision 0.0017    add_domain 0.0113    summary 0.0057    
+Length of domains: 8704
+17393 domains visited
+Current (lb-rhs): tensor([[-341.45599365]], device='cuda:0')
+Cumulative time: 4.391032934188843
+
+Iteration 23
+  0%|          | 0/5 [00:00<?, ?it/s]100%|██████████| 5/5 [00:00<00:00, 721.91it/s]
+PGD attack margin (first 2 examples and 10 specs):
+ tensor([[1.22463107, 1.30080485, 1.87736261, 1.89848483, 0.55949664, 1.42338920,
+         1.22230124, 1.27451968, 1.20661306, 2.15829325]], device='cuda:0')
+Total number of violation:  0
+Current pickout batch: 512
+Worst bound: tensor([-135.18467712], device='cuda:0')
+Time: adv_check 0.0085    pickout 0.0001    split 0.0003    init 0.0001    concretize 0.0001    bounding 0.2363    filtering 0.0001    decision 0.0001    add_domain 0.0002    summary 0.0002    
+Accumulated time: adv_check 0.2646    pickout 0.0036    split 0.0117    bounding 4.3099    init 0.0114    concretize 0.0114    filtering 0.0014    decision 0.0018    add_domain 0.0115    summary 0.0060    
+Length of domains: 9216
+18417 domains visited
+Current (lb-rhs): tensor([[-341.45599365]], device='cuda:0')
+Cumulative time: 4.637278079986572
+
+Iteration 24
+  0%|          | 0/5 [00:00<?, ?it/s]100%|██████████| 5/5 [00:00<00:00, 731.20it/s]
+PGD attack margin (first 2 examples and 10 specs):
+ tensor([[1.34772754, 1.42814600, 1.78489888, 2.00240850, 1.40254998, 1.42338920,
+         1.14944863, 1.16233540, 1.13913369, 1.86793101]], device='cuda:0')
+Total number of violation:  0
+Current pickout batch: 512
+Worst bound: tensor([-124.15425873], device='cuda:0')
+Time: adv_check 0.0084    pickout 0.0001    split 0.0003    init 0.0001    concretize 0.0001    bounding 0.2363    filtering 0.0001    decision 0.0001    add_domain 0.0002    summary 0.0003    
+Accumulated time: adv_check 0.2730    pickout 0.0037    split 0.0120    bounding 4.5462    init 0.0118    concretize 0.0119    filtering 0.0015    decision 0.0019    add_domain 0.0118    summary 0.0062    
+Length of domains: 9728
+19441 domains visited
+Current (lb-rhs): tensor([[-341.45599365]], device='cuda:0')
+Cumulative time: 4.883420467376709
+
+Iteration 25
+  0%|          | 0/5 [00:00<?, ?it/s]100%|██████████| 5/5 [00:00<00:00, 730.49it/s]
+PGD attack margin (first 2 examples and 10 specs):
+ tensor([[1.10830951, 1.25482988, 1.51903522, 1.87921655, 1.30146968, 1.44256043,
+         1.73813272, 1.79245901, 1.14810681, 1.12688041]], device='cuda:0')
+Total number of violation:  0
+Current pickout batch: 512
+Worst bound: tensor([-121.28516388], device='cuda:0')
+Time: adv_check 0.0084    pickout 0.0001    split 0.0003    init 0.0001    concretize 0.0001    bounding 0.2362    filtering 0.0001    decision 0.0001    add_domain 0.0002    summary 0.0002    
+Accumulated time: adv_check 0.2814    pickout 0.0038    split 0.0123    bounding 4.7824    init 0.0123    concretize 0.0123    filtering 0.0016    decision 0.0020    add_domain 0.0120    summary 0.0065    
+Length of domains: 10240
+20465 domains visited
+Current (lb-rhs): tensor([[-341.45599365]], device='cuda:0')
+Cumulative time: 5.129445552825928
+
+Iteration 26
+  0%|          | 0/5 [00:00<?, ?it/s]100%|██████████| 5/5 [00:00<00:00, 732.78it/s]
+PGD attack margin (first 2 examples and 10 specs):
+ tensor([[1.18116164, 1.74256372, 1.62120903, 1.74152422, 1.46397793, 1.56042612,
+         1.55835235, 1.49421322, 1.25842023, 1.41942775]], device='cuda:0')
+Total number of violation:  0
+Current pickout batch: 512
+Worst bound: tensor([-119.06008148], device='cuda:0')
+Time: adv_check 0.0084    pickout 0.0001    split 0.0003    init 0.0001    concretize 0.0001    bounding 0.2365    filtering 0.0001    decision 0.0001    add_domain 0.0003    summary 0.0003    
+Accumulated time: adv_check 0.2898    pickout 0.0039    split 0.0126    bounding 5.0189    init 0.0128    concretize 0.0128    filtering 0.0016    decision 0.0021    add_domain 0.0123    summary 0.0067    
+Length of domains: 10752
+21489 domains visited
+Current (lb-rhs): tensor([[-341.45599365]], device='cuda:0')
+Cumulative time: 5.375828742980957
+
+Iteration 27
+  0%|          | 0/5 [00:00<?, ?it/s]100%|██████████| 5/5 [00:00<00:00, 719.48it/s]
+PGD attack margin (first 2 examples and 10 specs):
+ tensor([[1.18718004, 1.36533487, 2.14030647, 2.35496902, 1.65858603, 1.66461134,
+         1.69347692, 1.55415916, 1.14014554, 2.33021140]], device='cuda:0')
+Total number of violation:  0
+Current pickout batch: 512
+Worst bound: tensor([-115.38181305], device='cuda:0')
+Time: adv_check 0.0085    pickout 0.0001    split 0.0003    init 0.0001    concretize 0.0001    bounding 0.2362    filtering 0.0001    decision 0.0001    add_domain 0.0002    summary 0.0003    
+Accumulated time: adv_check 0.2983    pickout 0.0041    split 0.0129    bounding 5.2550    init 0.0132    concretize 0.0133    filtering 0.0017    decision 0.0022    add_domain 0.0125    summary 0.0070    
+Length of domains: 11264
+22513 domains visited
+Current (lb-rhs): tensor([[-341.45599365]], device='cuda:0')
+Cumulative time: 5.6220176219940186
+
+Iteration 28
+  0%|          | 0/5 [00:00<?, ?it/s]100%|██████████| 5/5 [00:00<00:00, 734.79it/s]
+PGD attack margin (first 2 examples and 10 specs):
+ tensor([[1.44814146, 1.22447705, 2.41735220, 1.89848483, 1.59347403, 1.41820955,
+         1.52368677, 1.50173128, 1.20160651, 1.41942775]], device='cuda:0')
+Total number of violation:  0
+Current pickout batch: 512
+Worst bound: tensor([-112.93024445], device='cuda:0')
+Time: adv_check 0.0083    pickout 0.0001    split 0.0003    init 0.0001    concretize 0.0001    bounding 0.2357    filtering 0.0001    decision 0.0001    add_domain 0.0002    summary 0.0002    
+Accumulated time: adv_check 0.3066    pickout 0.0042    split 0.0132    bounding 5.4907    init 0.0137    concretize 0.0138    filtering 0.0017    decision 0.0022    add_domain 0.0127    summary 0.0073    
+Length of domains: 11776
+23537 domains visited
+Current (lb-rhs): tensor([[-341.45599365]], device='cuda:0')
+Cumulative time: 5.867470026016235
+
+Iteration 29
+  0%|          | 0/5 [00:00<?, ?it/s]100%|██████████| 5/5 [00:00<00:00, 739.61it/s]
+PGD attack margin (first 2 examples and 10 specs):
+ tensor([[1.18116164, 1.28124511, 2.85552645, 1.80504274, 1.69451714, 1.42338920,
+         1.21592307, 1.52015889, 1.07929301, 1.43298042]], device='cuda:0')
+Total number of violation:  0
+Current pickout batch: 512
+Worst bound: tensor([-111.23030853], device='cuda:0')
+Time: adv_check 0.0083    pickout 0.0002    split 0.0003    init 0.0001    concretize 0.0001    bounding 0.2361    filtering 0.0001    decision 0.0001    add_domain 0.0002    summary 0.0003    
+Accumulated time: adv_check 0.3149    pickout 0.0044    split 0.0135    bounding 5.7269    init 0.0142    concretize 0.0142    filtering 0.0018    decision 0.0023    add_domain 0.0130    summary 0.0075    
+Length of domains: 12288
+24561 domains visited
+Current (lb-rhs): tensor([[-341.45599365]], device='cuda:0')
+Cumulative time: 6.1133949756622314
+
+Iteration 30
+  0%|          | 0/5 [00:00<?, ?it/s]100%|██████████| 5/5 [00:00<00:00, 730.89it/s]
+PGD attack margin (first 2 examples and 10 specs):
+ tensor([[1.44410074, 1.30080485, 1.87850773, 1.99485826, 1.58277428, 1.59208715,
+         1.48170412, 1.88802600, 1.13971972, 1.88374150]], device='cuda:0')
+Total number of violation:  0
+Current pickout batch: 512
+Worst bound: tensor([-92.91226959], device='cuda:0')
+Time: adv_check 0.0084    pickout 0.0001    split 0.0003    init 0.0001    concretize 0.0001    bounding 0.2364    filtering 0.0001    decision 0.0001    add_domain 0.0002    summary 0.0003    
+Accumulated time: adv_check 0.3233    pickout 0.0045    split 0.0139    bounding 5.9633    init 0.0147    concretize 0.0147    filtering 0.0019    decision 0.0024    add_domain 0.0132    summary 0.0078    
+Length of domains: 12800
+25585 domains visited
+Current (lb-rhs): tensor([[-341.45599365]], device='cuda:0')
+Cumulative time: 6.359659433364868
+
+Iteration 31
+  0%|          | 0/5 [00:00<?, ?it/s]100%|██████████| 5/5 [00:00<00:00, 738.43it/s]
+PGD attack margin (first 2 examples and 10 specs):
+ tensor([[1.40838814, 1.23893023, 2.01395488, 2.19918680, 1.68787634, 2.42947340,
+         1.18770194, 1.55216098, 1.14121079, 1.41942775]], device='cuda:0')
+Total number of violation:  0
+Current pickout batch: 512
+Worst bound: tensor([-88.64096832], device='cuda:0')
+Time: adv_check 0.0083    pickout 0.0001    split 0.0003    init 0.0001    concretize 0.0001    bounding 0.2362    filtering 0.0001    decision 0.0001    add_domain 0.0002    summary 0.0003    
+Accumulated time: adv_check 0.3316    pickout 0.0046    split 0.0142    bounding 6.1994    init 0.0151    concretize 0.0152    filtering 0.0019    decision 0.0025    add_domain 0.0135    summary 0.0080    
+Length of domains: 13312
+26609 domains visited
+Current (lb-rhs): tensor([[-341.45599365]], device='cuda:0')
+Cumulative time: 6.605612277984619
+
+Iteration 32
+  0%|          | 0/5 [00:00<?, ?it/s]100%|██████████| 5/5 [00:00<00:00, 733.40it/s]
+PGD attack margin (first 2 examples and 10 specs):
+ tensor([[1.37366271, 1.54509640, 2.33281279, 1.17051649, 1.63528585, 1.22692776,
+         1.46459913, 1.74437332, 1.23124075, 1.48826456]], device='cuda:0')
+Total number of violation:  0
+Current pickout batch: 512
+Worst bound: tensor([-81.61957550], device='cuda:0')
+Time: adv_check 0.0084    pickout 0.0001    split 0.0003    init 0.0001    concretize 0.0001    bounding 0.2360    filtering 0.0001    decision 0.0001    add_domain 0.0002    summary 0.0003    
+Accumulated time: adv_check 0.3400    pickout 0.0048    split 0.0145    bounding 6.4354    init 0.0156    concretize 0.0156    filtering 0.0020    decision 0.0026    add_domain 0.0137    summary 0.0083    
+Length of domains: 13824
+27633 domains visited
+Current (lb-rhs): tensor([[-341.45599365]], device='cuda:0')
+Cumulative time: 6.851399898529053
+
+Iteration 33
+  0%|          | 0/5 [00:00<?, ?it/s] 40%|████      | 2/5 [00:00<00:00, 492.23it/s]
+pgd early stop
+PGD attack margin (first 2 examples and 10 specs):
+ tensor([[1.24843526, 1.30080485, 2.44134974, 2.12121153, 1.85198379, 2.18604302,
+         1.75596583, 1.87406301, 1.27882230, 1.99940050]], device='cuda:0')
+Total number of violation:  1
+pgd attack succeed in stage bab, with index: tensor([10], device='cuda:0')
+
+Checking and Saving Counterexample in check_and_save_cex
+
